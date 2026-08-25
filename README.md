@@ -94,8 +94,9 @@ npx --yes --package=mds-core mds skills install   # without installing
 ```
 
 Writes `.claude/skills/mds/SKILL.md`, `.hermes/skills/mds/SKILL.md` and
-`.kilo/command/mds.md`; existing files are never overwritten without
-`--force`.
+`.kilo/command/mds.md` plus the `mds-draft` workflow skill
+(document → draft → fill TODO expectations → re-validate → scaffold
+roundtrip check); existing files are never overwritten without `--force`.
 
 ## Use as a library
 

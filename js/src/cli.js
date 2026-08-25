@@ -47,6 +47,9 @@ const SKILL_TARGETS = [
   { template: 'claude-SKILL.md', target: '.claude/skills/mds/SKILL.md' },
   { template: 'hermes-SKILL.md', target: '.hermes/skills/mds/SKILL.md' },
   { template: 'kilo-mds.md', target: '.kilo/command/mds.md' },
+  { template: 'claude-SKILL-draft.md', target: '.claude/skills/mds-draft/SKILL.md' },
+  { template: 'hermes-SKILL-draft.md', target: '.hermes/skills/mds-draft/SKILL.md' },
+  { template: 'kilo-mds-draft.md', target: '.kilo/command/mds-draft.md' },
 ];
 
 /** Write agent skill files into the current project (idempotent). */

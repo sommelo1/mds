@@ -42,7 +42,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test/conformance.test.js",
+    "test": "node test/conformance.test.js && node test/draft.e2e.test.js",
     "test:watch": "node --watch-path=../conformance test/conformance.test.js",
     "docs": "npx -y jsdoc -c jsdoc.json"
   }
