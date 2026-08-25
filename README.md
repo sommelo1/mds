@@ -1,7 +1,7 @@
 # MDS — Markdown Document Schema
 
-[![npm](https://img.shields.io/npm/v/mds-core)](https://www.npmjs.com/package/mds-core)
-[![PyPI](https://img.shields.io/pypi/v/mds-core)](https://pypi.org/project/mds-core/)
+[![npm](https://img.shields.io/npm/v/mds-core?logo=npm)](https://www.npmjs.com/package/mds-core)
+[![PyPI](https://img.shields.io/pypi/v/mds-core?logo=pypi)](https://pypi.org/project/mds-core/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Turn Markdown into a contract-driven, testable document format.**
