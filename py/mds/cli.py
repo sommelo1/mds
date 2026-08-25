@@ -1,0 +1,126 @@
+"""Command-line interface for the ``mds`` command (section 58).
+
+Thin wrapper: argv parsing, file I/O and exit codes around the library API
+(:mod:`mds.validate`, :mod:`mds.introspect`). All behavior lives in the
+library so it can be embedded directly (lib-first).
+
+Commands: ``validate``, ``inspect``, ``scaffold``, ``extensions``, ``help``.
+Diagnostics go to stdout as the normative Markdown line stream; operational
+failures go to stderr. Exit codes follow section 59:
+0 valid / 1 invalid / 2 schema-config failure.
+
+Mirrors ``js/src/cli.js``.
+"""
+
+import os
+import sys
+
+from .validate import validate_document
+from .introspect import inspect_schema, scaffold_doc
+from .formats import builtin_formats
+from .plugins import discover_plugins
+
+USAGE = """mds - Markdown Document Schema validator (spec v0.13)
+
+Usage:
+  mds validate <doc.md> <schema.mds> [--max N]
+  mds inspect <schema.mds>
+  mds scaffold <schema.mds>
+  mds extensions
+  mds help
+
+Exit codes: 0 valid / 1 invalid / 2 schema/config failure
+"""
+
+
+def _fail(msg):
+    sys.stderr.write(f"mds: {msg}\n")
+    return 2
+
+
+def parse_args(argv):
+    """Parse `--max N` style flags from argv."""
+    positional = []
+    flags = {}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--max":
+            i += 1
+            try:
+                flags["max"] = int(argv[i])
+            except (ValueError, IndexError):
+                flags["max"] = None
+        elif a == "--enable-optional-libs":
+            flags["libs"] = True
+        elif a == "--help":
+            flags["help"] = True
+        else:
+            positional.append(a)
+        i += 1
+    return {"positional": positional, "flags": flags}
+
+
+def main(argv=None):
+    """CLI main entry. Returns the process exit code."""
+    # Output convention (section 58): plain UTF-8 text on every platform.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+    if argv is None:
+        argv = sys.argv[1:]
+    parsed = parse_args(list(argv))
+    positional, flags = parsed["positional"], parsed["flags"]
+    cmd = positional[0] if positional else None
+
+    if not cmd or cmd == "help" or flags.get("help"):
+        sys.stdout.write(USAGE)
+        return 0
+    try:
+        if cmd == "extensions":
+            all_fmts = {}
+            for f in builtin_formats(flags.get("libs") or False):
+                all_fmts[f["id"]] = f
+            for p in discover_plugins():
+                for f in p.get("formats") or []:
+                    if isinstance(f, dict) and f.get("id"):
+                        all_fmts[f["id"]] = f
+            rows = [
+                f"- {f['id']}: syntax={'yes' if f['capabilities']['syntax'] else 'recognition-only'}"
+                for f in all_fmts.values()]
+            sys.stdout.write("\n".join(rows) + "\n")
+            return 0
+        if cmd in ("inspect", "scaffold"):
+            if len(positional) < 2:
+                return _fail(f"{cmd} requires a schema path")
+            with open(positional[1], "r", encoding="utf-8") as fh:
+                text = fh.read()
+            r = inspect_schema(text, positional[1]) if cmd == "inspect" \
+                else scaffold_doc(text, positional[1])
+            sys.stdout.write(r["stream"] + "\n")
+            return r["exitCode"]
+        if cmd == "validate":
+            if len(positional) < 3:
+                return _fail("validate requires <doc.md> <schema.mds>")
+            _, doc_path, schema_path = positional[:3]
+            with open(doc_path, "r", encoding="utf-8") as fh:
+                doc_text = fh.read()
+            with open(schema_path, "r", encoding="utf-8") as fh:
+                schema_text = fh.read()
+            r = validate_document(
+                doc_text=doc_text, doc_name=doc_path,
+                schema_text=schema_text, schema_name=schema_path,
+                base_dir=os.path.dirname(os.path.abspath(schema_path)),
+                max_diagnostics=flags.get("max"),
+                enable_optional_libs=flags.get("libs") or False,
+            )
+            sys.stdout.write(r["stream"] + "\n")
+            return r["exitCode"]
+        return _fail(f'unknown command "{cmd}" - try "mds help"')
+    except OSError as err:
+        return _fail(str(err))
+
+
+def console_main():
+    """Console-script entry point."""
+    raise SystemExit(main())

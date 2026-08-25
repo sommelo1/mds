@@ -1,0 +1,4 @@
+error
+- MDS-C002 error / case.mds:1:1 unsupported statement "frobnicate"
+
+summary: 1 errors, 0 warnings

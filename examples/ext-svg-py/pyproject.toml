@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mds-ext-svg"
+version = "1.0.0"
+description = "Example MDS format extension: minimal SVG element sanity checking."
+license = { text = "MIT" }
+dependencies = []
+
+[project.entry-points."mds_ext"]
+svg = "mds_ext_svg"
+
+[tool.setuptools]
+py-modules = ["mds_ext_svg"]

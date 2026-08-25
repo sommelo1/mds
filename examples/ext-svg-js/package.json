@@ -1,0 +1,8 @@
+{
+  "name": "mds-ext-svg",
+  "version": "1.0.0",
+  "description": "Example MDS format extension: minimal SVG element sanity checking.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js"
+}

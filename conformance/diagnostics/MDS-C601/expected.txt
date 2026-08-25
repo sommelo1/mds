@@ -1,0 +1,4 @@
+invalid
+- MDS-C601 error /metadata case.md:2:1 malformed metadata entry "broken"
+
+summary: 1 errors, 0 warnings

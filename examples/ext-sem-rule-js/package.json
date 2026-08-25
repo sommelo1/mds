@@ -1,0 +1,8 @@
+{
+  "name": "mds-ext-sem-rule",
+  "version": "0.1.0",
+  "description": "Example MDS semantic validator: deterministic rules over document regions backing an `expect` + `validate: semantic:` binding.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js"
+}

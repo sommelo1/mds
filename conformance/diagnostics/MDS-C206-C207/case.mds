@@ -1,0 +1,6 @@
+## Sec required
+
+additionalFields false
+
+- Name: string required
+- City: string required

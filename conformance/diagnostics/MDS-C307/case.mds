@@ -1,0 +1,6 @@
+## T required
+
+additionalFields false
+
+table Data required
+- Name: string required

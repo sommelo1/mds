@@ -1,0 +1,4 @@
+error
+- MDS-C005 error / case.mds:2:1 constraint "min" needs a number, got "abc"
+
+summary: 1 errors, 0 warnings

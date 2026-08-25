@@ -1,0 +1,4 @@
+invalid
+- MDS-C204 error /Opt[2] case.md:7:1 contract case.mds:1 too many occurrences of "Opt"
+
+summary: 1 errors, 0 warnings

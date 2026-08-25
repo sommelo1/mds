@@ -1,0 +1,10 @@
+document Person
+
+# "*" as title required
+
+## Identity required
+- Name: string required
+- Age: integer optional min=0 max=130
+
+## Tags optional
+list string minItems=1

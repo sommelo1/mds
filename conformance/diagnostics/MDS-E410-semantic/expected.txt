@@ -1,0 +1,4 @@
+invalid
+- MDS-E410 error / case.mds:1:1 required extension unavailable: semantic (via core)
+
+summary: 1 errors, 0 warnings

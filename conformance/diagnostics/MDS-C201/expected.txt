@@ -1,0 +1,4 @@
+invalid
+- MDS-C201 error /Alpha case.md:7:1 contract case.mds:3 section "Alpha" out of declared order
+
+summary: 1 errors, 0 warnings

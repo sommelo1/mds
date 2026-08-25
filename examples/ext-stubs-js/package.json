@@ -1,0 +1,8 @@
+{
+  "name": "mds-ext-stubs",
+  "version": "0.1.0",
+  "description": "Recognition-only stubs for every machine-usable embed type rendered by GitHub/GitLab Flavored Markdown; CSV ships a real minimal validator as the reference implementation.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js"
+}

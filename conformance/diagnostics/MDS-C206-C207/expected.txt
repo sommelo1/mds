@@ -1,0 +1,5 @@
+invalid
+- MDS-C207 error /Sec/Zip case.md:6:1 contract case.mds:3 unexpected field "Zip" under closed contract
+- MDS-C206 error /Sec/City case.md:1:1 contract case.mds:6 missing required field "City"
+
+summary: 2 errors, 0 warnings

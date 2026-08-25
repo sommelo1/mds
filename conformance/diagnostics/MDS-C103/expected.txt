@@ -1,0 +1,4 @@
+invalid
+- MDS-C103 error / case.md:1:1 contract case.mds:1 missing required document title
+
+summary: 1 errors, 0 warnings

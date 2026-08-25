@@ -1,0 +1,4 @@
+invalid
+- MDS-C603 error /metadata/key case.md:2:1 contract case.mds:1 unexpected metadata key "key" under closed contract
+
+summary: 1 errors, 0 warnings

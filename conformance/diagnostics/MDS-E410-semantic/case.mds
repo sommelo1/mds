@@ -1,0 +1,9 @@
+## Purpose required
+
+prose required
+
+expect:
+  Explain why the engine exists, its responsibility and boundaries.
+
+validate:
+  semantic: required

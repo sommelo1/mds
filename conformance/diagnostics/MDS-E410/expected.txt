@@ -1,0 +1,4 @@
+invalid
+  - MDS-E410 error /A/embed case.md:5:1 required validation could not run; unavailable extension: json-schema (via core)
+
+summary: 1 errors, 0 warnings

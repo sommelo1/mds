@@ -1,0 +1,4 @@
+invalid
+- MDS-C101 error /Outputs case.md:1:1 contract case.mds:3 missing required section "Outputs"
+
+summary: 1 errors, 0 warnings

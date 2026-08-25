@@ -1,0 +1,4 @@
+invalid
+- MDS-C305 error /L/list case.md:2:1 contract case.mds:2 maxItems=2 violated (3)
+
+summary: 1 errors, 0 warnings

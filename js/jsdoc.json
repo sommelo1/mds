@@ -1,0 +1,19 @@
+{
+  "opts": {
+    "destination": "../docs/js",
+    "recurse": true,
+    "readme": "./README.md"
+  },
+  "source": {
+    "include": ["src", "bin"],
+    "includePattern": "\\.js$"
+  },
+  "plugins": ["plugins/markdown"],
+  "templates": {
+    "cleverLinks": true,
+    "monospaceLinks": true
+  },
+  "metadata": {
+    "title": "MDS Core - JavaScript Reference"
+  }
+}

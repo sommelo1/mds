@@ -1,0 +1,4 @@
+error
+- MDS-C003 error / case.mds:2:1 unknown type "frobnicate"
+
+summary: 1 errors, 0 warnings

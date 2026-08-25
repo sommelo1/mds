@@ -1,0 +1,4 @@
+invalid
+- MDS-C102 error /Extra case.md:7:1 contract case.mds:1 unexpected section "Extra" under closed contract
+
+summary: 1 errors, 0 warnings

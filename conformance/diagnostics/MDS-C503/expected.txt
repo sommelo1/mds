@@ -1,0 +1,4 @@
+invalid
+  - MDS-C503 error /A/embed case.md:5:1 contract case.mds:3 embedded block declares yaml, contract expects json
+
+summary: 1 errors, 0 warnings

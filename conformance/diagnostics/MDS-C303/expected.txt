@@ -1,0 +1,4 @@
+invalid
+- MDS-C303 error /S/Status case.md:5:1 contract case.mds:2 value "review" is not one of enum[draft, approved]
+
+summary: 1 errors, 0 warnings

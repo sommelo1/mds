@@ -1,0 +1,4 @@
+error
+- MDS-C404 error / case.mds:4:1 duplicate definition "Foo"
+
+summary: 1 errors, 0 warnings

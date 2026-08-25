@@ -1,0 +1,4 @@
+invalid
+- MDS-C307 error /T/Data/Extra case.md:5:1 contract case.mds:3 undeclared column "Extra" under closed contract
+
+summary: 1 errors, 0 warnings

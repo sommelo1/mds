@@ -1,0 +1,4 @@
+invalid
+- MDS-C205 error /S case.md:7:1 contract case.mds:1 content out of declared order in "S"
+
+summary: 1 errors, 0 warnings

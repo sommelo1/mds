@@ -1,0 +1,4 @@
+invalid
+- MDS-C202 error /Rep[2] case.md:11:1 contract case.mds:1 repeated sections "Rep" are not contiguous
+
+summary: 1 errors, 0 warnings

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mds-ext-sem-rule"
+version = "0.1.0"
+description = "Example MDS semantic validator: deterministic rules over document regions backing an `expect` + `validate: semantic:` binding."
+license = { text = "MIT" }
+dependencies = []
+
+[project.entry-points."mds_ext"]
+sem-rule = "mds_ext_sem_rule"
+
+[tool.setuptools]
+py-modules = ["mds_ext_sem_rule"]

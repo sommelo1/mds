@@ -1,0 +1,4 @@
+invalid
+- MDS-C302 error /S/W case.md:5:1 contract case.mds:2 min=0 violated by "-1"
+
+summary: 1 errors, 0 warnings

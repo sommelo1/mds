@@ -1,0 +1,4 @@
+## A required
+
+embed json required
+  schema: ./config.schema.json

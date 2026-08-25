@@ -1,0 +1,4 @@
+error
+- MDS-C402 error / case.mds:1:1 import cycle detected: other.mds -> case.mds -> other.mds
+
+summary: 1 errors, 0 warnings

@@ -1,0 +1,36 @@
+{
+  "name": "mds-core",
+  "version": "0.13.0",
+  "description": "MDS — Markdown Document Schema: reference validator, CLI and library. Validates Markdown documents against .mds contracts.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mds": "bin/mds.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "markdown",
+    "schema",
+    "validation",
+    "llm",
+    "ai",
+    "document",
+    "contract",
+    "gfm"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test/conformance.test.js",
+    "test:watch": "node --watch-path=../conformance test/conformance.test.js",
+    "docs": "npx -y jsdoc -c jsdoc.json"
+  }
+}

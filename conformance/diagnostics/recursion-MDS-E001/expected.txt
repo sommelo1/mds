@@ -1,0 +1,4 @@
+invalid
+      - MDS-E001 error /Appendix/embed/Config/embed case.md:9:1 invalid JSON syntax (via json)
+
+summary: 1 errors, 0 warnings

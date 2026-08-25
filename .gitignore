@@ -1,0 +1,20 @@
+# Python — isolated project environment
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Node — already project-local, but keep tooling noise out
+node_modules/
+package-lock.json
+
+# Generated documentation output
+docs/js/
+docs/py/
+
+# OS / editor
+Thumbs.db
+.DS_Store

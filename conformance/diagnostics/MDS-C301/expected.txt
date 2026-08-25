@@ -1,0 +1,4 @@
+invalid
+- MDS-C301 error /S/Age case.md:5:1 contract case.mds:2 value "abc" does not match type integer
+
+summary: 1 errors, 0 warnings

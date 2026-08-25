@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mds-core"
+version = "0.13.0"
+description = "MDS - Markdown Document Schema: reference validator, CLI and library. Validates Markdown documents against .mds contracts."
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["markdown", "schema", "validation", "llm", "ai", "document", "contract", "gfm"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+[project.scripts]
+mds = "mds.cli:console_main"
+
+[tool.setuptools]
+packages = ["mds"]

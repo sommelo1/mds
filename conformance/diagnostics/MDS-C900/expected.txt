@@ -1,0 +1,6 @@
+invalid
+# flags: --max 1
+- MDS-C103 error / case.md:1:1 contract case.mds:1 missing required document title
+- MDS-C900 warning / -:1:1 diagnostic list truncated (--max 1)
+
+summary: 0 errors, 1 warnings
