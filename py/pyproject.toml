@@ -6,7 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "mds-core"
 version = "0.13.0"
 description = "MDS - Markdown Document Schema: reference validator, CLI and library. Validates Markdown documents against .mds contracts."
+readme = "README.md"
 license = { text = "MIT" }
+authors = [
+  { name = "Lorenz Sommer", email = "59441867+sommelo1@users.noreply.github.com" },
+]
 requires-python = ">=3.10"
 dependencies = []
 keywords = ["markdown", "schema", "validation", "llm", "ai", "document", "contract", "gfm"]
@@ -22,6 +26,11 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Text Processing :: Markup :: Markdown",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sommelo1/mds"
+Repository = "https://github.com/sommelo1/mds"
+Issues = "https://github.com/sommelo1/mds/issues"
 
 [project.scripts]
 mds = "mds.cli:console_main"

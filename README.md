@@ -40,7 +40,7 @@ MDS Contract
 
 ```bash
 # CLI without installing anything (Node >= 18)
-npx mds validate doc.md doc.mds
+npx --yes --package=mds-core mds validate doc.md doc.mds
 
 # Python side
 pipx install mds-core
