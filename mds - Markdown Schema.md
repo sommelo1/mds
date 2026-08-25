@@ -8,9 +8,7 @@
 
 ---
 
-# Executive Summary
-
-## Elevator Pitch
+# Indent
 
 **MDS turns Markdown from an informal document format into a contract-driven, testable and machine-verifiable document system.**
 

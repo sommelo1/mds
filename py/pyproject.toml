@@ -37,3 +37,6 @@ mds = "mds.cli:console_main"
 
 [tool.setuptools]
 packages = ["mds"]
+
+[tool.setuptools.package-data]
+mds = ["skills/*.md"]

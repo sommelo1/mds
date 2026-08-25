@@ -5,15 +5,17 @@
  * API (`validate.js`, `introspect.js`). All behavior lives in the library
  * so it can be embedded directly (lib-first).
  *
- * Commands: `validate`, `inspect`, `scaffold`, `extensions`, `help`.
+ * Commands: `validate`, `inspect`, `scaffold`, `extensions`, `skills`,
+ * `help`.
  * Diagnostics go to stdout as the normative Markdown line stream;
  * operational failures go to stderr. Exit codes follow section 59:
  * 0 valid · 1 invalid · 2 schema/config failure.
  *
  * @module cli
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { validateDocument } from './validate.js';
 import { inspectSchema, scaffoldDoc } from './introspect.js';
 import { builtinFormats } from './formats/index.js';
@@ -26,6 +28,7 @@ Usage:
   mds inspect <schema.mds>
   mds scaffold <schema.mds>
   mds extensions
+  mds skills install [--force]
   mds help
 
 Exit codes: 0 valid · 1 invalid · 2 schema/config failure
@@ -36,6 +39,34 @@ function fail(msg) {
   process.exitCode = 2;
 }
 
+/** Skill templates shipped with the package and their project targets. */
+const SKILLS_DIR = fileURLToPath(new URL('../skills/', import.meta.url));
+const SKILL_TARGETS = [
+  { template: 'claude-SKILL.md', target: '.claude/skills/mds/SKILL.md' },
+  { template: 'hermes-SKILL.md', target: '.hermes/skills/mds/SKILL.md' },
+  { template: 'kilo-mds.md', target: '.kilo/command/mds.md' },
+];
+
+/** Write agent skill files into the current project (idempotent). */
+export function skillsInstall(force) {
+  const lines = [];
+  let written = 0;
+  let skipped = 0;
+  for (const { template, target } of SKILL_TARGETS) {
+    if (existsSync(target) && !force) {
+      lines.push(`- skip ${target} (exists, --force to overwrite)`);
+      skipped++;
+      continue;
+    }
+    mkdirSync(resolve(target, '..'), { recursive: true });
+    writeFileSync(target, readFileSync(SKILLS_DIR + template, 'utf8').replace(/\r\n/g, '\n'));
+    lines.push(`- write ${target}`);
+    written++;
+  }
+  lines.push(`summary: ${written} written, ${skipped} skipped`);
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
 /** Parse `--max N` style flags from argv. */
 export function parseArgs(argv) {
   const positional = [];
@@ -44,6 +75,7 @@ export function parseArgs(argv) {
     if (argv[i] === '--max') { flags.max = Number(argv[++i]); continue; }
     if (argv[i] === '--enable-optional-libs') { flags.libs = true; continue; }
     if (argv[i] === '--help') { flags.help = true; continue; }
+    if (argv[i] === '--force') { flags.force = true; continue; }
     positional.push(argv[i]);
   }
   return { positional, flags };
@@ -71,6 +103,11 @@ export async function main(argv) {
       const rows = [...all.values()]
         .map((f) => `- ${f.id}: syntax=${f.capabilities.syntax ? 'yes' : 'recognition-only'}`);
       process.stdout.write(`${rows.join('\n')}\n`);
+      return;
+    }
+    if (cmd === 'skills') {
+      if (positional[1] !== 'install') return fail('skills requires "install" — try "mds help"');
+      skillsInstall(flags.force ?? false);
       return;
     }
     if (cmd === 'inspect' || cmd === 'scaffold') {

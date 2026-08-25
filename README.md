@@ -82,6 +82,21 @@ $ npx mds validate doc.md doc.mds
 summary: 1 errors, 0 warnings
 ```
 
+## Agent skills
+
+Make coding agents MDS-aware in your own project — one command writes
+ready-made instructions that Claude Code, Hermes and Kilo pick up
+automatically:
+
+```bash
+mds skills install                                # after installing mds-core
+npx --yes --package=mds-core mds skills install   # without installing
+```
+
+Writes `.claude/skills/mds/SKILL.md`, `.hermes/skills/mds/SKILL.md` and
+`.kilo/command/mds.md`; existing files are never overwritten without
+`--force`.
+
 ## Use as a library
 
 Everything the CLI does is available programmatically — embed the library in

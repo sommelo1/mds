@@ -4,7 +4,8 @@ Thin wrapper: argv parsing, file I/O and exit codes around the library API
 (:mod:`mds.validate`, :mod:`mds.introspect`). All behavior lives in the
 library so it can be embedded directly (lib-first).
 
-Commands: ``validate``, ``inspect``, ``scaffold``, ``extensions``, ``help``.
+Commands: ``validate``, ``inspect``, ``scaffold``, ``extensions``,
+``skills``, ``help``.
 Diagnostics go to stdout as the normative Markdown line stream; operational
 failures go to stderr. Exit codes follow section 59:
 0 valid / 1 invalid / 2 schema-config failure.
@@ -14,6 +15,7 @@ Mirrors ``js/src/cli.js``.
 
 import os
 import sys
+from importlib import resources
 
 from .validate import validate_document
 from .introspect import inspect_schema, scaffold_doc
@@ -27,6 +29,7 @@ Usage:
   mds inspect <schema.mds>
   mds scaffold <schema.mds>
   mds extensions
+  mds skills install [--force]
   mds help
 
 Exit codes: 0 valid / 1 invalid / 2 schema/config failure
@@ -36,6 +39,35 @@ Exit codes: 0 valid / 1 invalid / 2 schema/config failure
 def _fail(msg):
     sys.stderr.write(f"mds: {msg}\n")
     return 2
+
+
+# Skill templates shipped with the package and their project targets.
+SKILL_TARGETS = [
+    ("claude-SKILL.md", ".claude/skills/mds/SKILL.md"),
+    ("hermes-SKILL.md", ".hermes/skills/mds/SKILL.md"),
+    ("kilo-mds.md", ".kilo/command/mds.md"),
+]
+
+
+def _skills_install(force):
+    """Write agent skill files into the current project (idempotent)."""
+    lines = []
+    written = skipped = 0
+    root = resources.files("mds").joinpath("skills")
+    for template, target in SKILL_TARGETS:
+        text = root.joinpath(template).read_text(encoding="utf-8").replace("\r\n", "\n")
+        if os.path.exists(target) and not force:
+            lines.append(f"- skip {target} (exists, --force to overwrite)")
+            skipped += 1
+            continue
+        os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+        with open(target, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        lines.append(f"- write {target}")
+        written += 1
+    lines.append(f"summary: {written} written, {skipped} skipped")
+    sys.stdout.write("\n".join(lines) + "\n")
+    return 0
 
 
 def parse_args(argv):
@@ -55,6 +87,8 @@ def parse_args(argv):
             flags["libs"] = True
         elif a == "--help":
             flags["help"] = True
+        elif a == "--force":
+            flags["force"] = True
         else:
             positional.append(a)
         i += 1
@@ -90,6 +124,10 @@ def main(argv=None):
                 for f in all_fmts.values()]
             sys.stdout.write("\n".join(rows) + "\n")
             return 0
+        if cmd == "skills":
+            if len(positional) < 2 or positional[1] != "install":
+                return _fail('skills requires "install" - try "mds help"')
+            return _skills_install(flags.get("force") or False)
         if cmd in ("inspect", "scaffold"):
             if len(positional) < 2:
                 return _fail(f"{cmd} requires a schema path")
