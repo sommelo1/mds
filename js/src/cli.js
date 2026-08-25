@@ -137,6 +137,8 @@ export async function main(argv) {
       if (r.exitCode !== 0) {
         process.stderr.write(`mds: draft self-check failed\n${r.stream}\n`);
         process.exitCode = 1;
+      } else {
+        process.stderr.write('mds: draft ready on stdout - replace each "TODO:" expect line with real expectations, then re-check with: mds validate <doc.md> <schema.mds>\n');
       }
       return;
     }

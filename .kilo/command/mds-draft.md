@@ -1,50 +1,82 @@
-# MDS draft roundtrip
+# MDS Draft — document to contract
 
-Derive a starter MDS (.mds) contract from an existing Markdown document,
-fill the semantic TODO stubs, then re-validate.
+Target: $ARGUMENTS.
 
-Target: $ARGUMENTS — a Markdown document (`mds draft <doc.md> > <doc>.mds`).
-If empty, ask for the document path.
+Derive a tweakable `.mds` contract from a Markdown document you already
+have. The CLI does the mechanics; you do the semantics.
 
-## Procedure
+## Running the CLI (any platform)
 
-1. Mechanical draft from the repository root:
+Resolve the `mds` command once per session; first match wins:
 
-   ```bash
-   node js/bin/mds.js draft "<doc.md>" > "<doc>.mds"
-   ```
+1. `mds --version` succeeds → use `mds …` (pipx or npm global install).
+2. A `.venv` exists in the workspace →
+   - Windows: `.venv\Scripts\python.exe -m mds …`
+   - POSIX: `.venv/bin/python -m mds …`
+3. Otherwise use `npx --yes --package=mds-core mds …` (Node ≥ 18).
 
-   Python alternative: `.venv/Scripts/python.exe -m mds draft ...`
-   Exit 0 means the generated contract already validates the source.
-   Exit 1 + stderr diagnostics = broken draft: report it, do not tweak.
+Inside this repository checkout `node js/bin/mds.js …` always works.
 
-2. Read the source document section by section and replace every line
+## Workflow
 
-   `TODO: describe what the <X> section must convey.`
-
-   under an `expect:` block with 1-3 plain sentences about required facts,
-   units, audience and tone of that section. Keep the two-space indentation.
-   You may loosen `required` to `optional`; never invent sections.
-
-3. Validate until clean:
+1. Draft (mechanical):
 
    ```bash
-   node js/bin/mds.js validate "<doc.md>" "<doc>.mds"
+   <mds> draft <doc.md> > <doc>.mds
    ```
 
-   Fix cheapest-first; final line must read `summary: 0 errors, 0 warnings`.
+   The command self-checks: the printed contract already validates the
+   source document (exit 0), and a stderr hint reminds you of the next
+   step. Exit 1 plus stderr diagnostics means the draft itself is broken —
+   report it instead of hand-tweaking blindly.
 
-4. Roundtrip sanity check: `node js/bin/mds.js scaffold "<doc>.mds"` should
-   regenerate every original heading with tables/embeds intact; large
-   deviations mean over-constrained declarations - loosen them.
+2. Fill the TODOs (semantic). Read the source document section by section.
+   For every block shaped like:
 
-## Fast reference
+   ```mds
+   expect:
+     TODO: describe what the Notes section must convey.
+   ```
 
-- `minLength=N` on prose derives from the observed text; relax when future
-  documents may be shorter.
-- `validate:` / `semantic: optional` keeps expectations inert until a
-  semantic extension enforces them.
+   replace the TODO line with 1-3 plain sentences stating which content
+   belongs there and what must not (required facts, units, audience, tone).
+   Keep the two-space indentation under `expect:` exactly. While editing you
+   may loosen cards (`required` to `optional`) for sections that are not
+   always present; never invent sections the document does not show.
+
+3. Re-validate (mechanical):
+
+   ```bash
+   <mds> validate <doc.md> <doc>.mds
+   ```
+
+   Fix findings cheapest-first (structural codes before value codes) and
+   repeat until `summary: 0 errors, 0 warnings`. Never edit the document to
+   satisfy a wrong expectation — fix the expectation.
+
+4. Roundtrip sanity check. Regenerate the skeleton from the finished
+   contract and compare it against the original document:
+
+   ```bash
+   <mds> scaffold <doc>.mds
+   ```
+
+   Every original heading should reappear; tables and embeds keep their
+   shape. Large deviations point at over-constrained declarations.
+
+## What the draft derives
+
 - Repeated sections become `<label> one-or-more`; singletons stay
   `required`.
-- Nested subsections are skipped by the draft and remain legal through the
-  default-open contract.
+- `prose minLength=N` comes from the observed text of each occurrence;
+  relax it when future documents may be shorter.
+- Field and table-column types are inferred from observed values; an empty
+  cell anywhere makes that column optional.
+- Only `json` fences are declared as `embed json`; other fence languages
+  stay undeclared and remain legal through the default-open contract.
+- Nested subsections are skipped; expectations bind `semantic: optional`,
+  so they stay inert until a semantic extension enforces them.
+
+Installing these instructions into another project: run `mds skills install`
+there — see README → Agent skills.
+

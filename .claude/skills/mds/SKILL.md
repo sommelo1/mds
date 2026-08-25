@@ -2,8 +2,9 @@
 name: mds
 description: >
   Validate, author and repair Markdown documents against MDS (.mds)
-  contracts using the bundled reference validator. Covers running the
-  validator, reading its Markdown diagnostic stream and the repair loop.
+  contracts using the reference validator. Covers resolving the CLI on any
+  platform and runtime, running validation, reading the Markdown diagnostic
+  stream and the repair loop.
 ---
 
 # MDS — Markdown Schema Workflow
@@ -20,6 +21,21 @@ Use it whenever the task involves:
 - fixing validation failures reported as a Markdown diagnostic stream,
 - creating or modifying `.mds` schemas themselves.
 
+## Running the CLI (any platform)
+
+Resolve the `mds` command once per session; first match wins:
+
+1. `mds --version` succeeds → use `mds …` (pipx or npm global install).
+2. A `.venv` exists in the workspace →
+   - Windows: `.venv\Scripts\python.exe -m mds …`
+   - POSIX: `.venv/bin/python -m mds …`
+3. Otherwise use `npx --yes --package=mds-core mds …` (Node ≥ 18).
+
+Inside this repository checkout `node js/bin/mds.js …` always works.
+All subcommands behave identically on the JavaScript and Python builds:
+`validate`, `inspect`, `scaffold`, `draft` (experimental), `extensions`,
+`skills install`, `help`.
+
 ## The repair loop
 
 1. Find the contract: look for `*.mds` near the target document
@@ -28,7 +44,7 @@ Use it whenever the task involves:
    text: headings declare sections, `- Field: type cardinality` declares
    typed fields, `table`, `list`, `prose`, `embed` declare content.
 3. Write or edit the document.
-4. Run the validator (see Invocation below).
+4. Run the validator (see above).
 5. Interpret the diagnostic stream (grammar below).
 6. Fix findings and re-run until the last line reads
    `summary: 0 errors, 0 warnings`.
@@ -36,17 +52,6 @@ Use it whenever the task involves:
 Exit codes: `0` valid, `1` document invalid, `2` schema/config broken.
 On exit code 2 do NOT touch the document — the `.mds` itself has errors
 (codes `MDS-C0xx`, `MDS-C4xx`); fix or report those instead.
-
-## Invocation (this repository)
-
-```bash
-node js/bin/mds.js validate <doc.md> <schema.mds>      # Node ≥18
-.venv/Scripts/python.exe -m mds validate <doc.md> <schema.mds>   # Windows
-.venv/bin/python -m mds validate <doc.md> <schema.mds>           # POSIX
-mds validate <doc.md> <schema.mds>                     # if installed
-```
-
-Other commands: `inspect`, `scaffold`, `extensions`, `help`.
 
 ## Diagnostic stream grammar
 
@@ -101,3 +106,12 @@ One finding per line, rendered as a Markdown list item:
 - Embedded blocks: the fence info string must match the declared format
   (`json`, `mermaid`, …); JSON must be strict (no comments, no trailing
   commas).
+
+## Starting from an existing document
+
+Use the companion `mds-draft` skill: `mds draft <doc.md>` derives a starter
+contract whose TODO expectations you refine semantically. See that skill for
+the full roundtrip workflow.
+
+Installing these instructions into another project: run `mds skills install`
+there — see README → Agent skills.

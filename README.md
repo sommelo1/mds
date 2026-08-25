@@ -82,21 +82,58 @@ $ npx mds validate doc.md doc.mds
 summary: 1 errors, 0 warnings
 ```
 
+## CLI reference
+
+Both builds (npm `mds-core` via Node ≥ 18, PyPI `mds-core` via Python ≥ 3.10)
+expose the same `mds` command with byte-identical behavior. Examples below
+use `mds` — installed via `pipx install mds-core` or `npm i -g mds-core`;
+without installing use `npx --yes --package=mds-core mds …` or
+`python -m mds …` from an active venv.
+
+| Command | Purpose |
+|---|---|
+| `mds validate <doc.md> <schema.mds>` | validate a document; prints Markdown-line diagnostics, exit 0 valid · 1 invalid · 2 broken contract |
+| `mds inspect <schema.mds>` | machine-readable report of a contract |
+| `mds scaffold <schema.mds>` | generate a document skeleton from a contract |
+| `mds draft <doc.md>` | **experimental** — derive a starter contract from an existing document; self-checks the result and hints next steps on stderr |
+| `mds extensions` | list discovered format extensions |
+| `mds skills install [--force]` | write agent skills into the current project |
+| `mds help` | usage overview |
+
+The draft → fill → validate roundtrip is its own workflow:
+
+```bash
+mds draft doc.md > doc.mds        # 1. mechanical starter contract
+# 2. replace each "TODO:" expect line with real expectations (see skill below)
+mds validate doc.md doc.mds       # 3. re-check until summary: 0 errors, 0 warnings
+mds scaffold doc.mds              # 4. roundtrip sanity: skeleton ≈ original
+```
+
 ## Agent skills
 
-Make coding agents MDS-aware in your own project — one command writes
-ready-made instructions that Claude Code, Hermes and Kilo pick up
-automatically:
+One command makes coding agents MDS-aware in your own project — Claude Code,
+Hermes and Kilo pick the files up automatically:
 
 ```bash
 mds skills install                                # after installing mds-core
 npx --yes --package=mds-core mds skills install   # without installing
 ```
 
-Writes `.claude/skills/mds/SKILL.md`, `.hermes/skills/mds/SKILL.md` and
-`.kilo/command/mds.md` plus the `mds-draft` workflow skill
-(document → draft → fill TODO expectations → re-validate → scaffold
-roundtrip check); existing files are never overwritten without `--force`.
+This writes six files — two skills for each supported agent:
+
+- `.claude/skills/mds/SKILL.md` + `.claude/skills/mds-draft/SKILL.md`
+- `.hermes/skills/{mds,mds-draft}/SKILL.md`
+- `.kilo/command/{mds,mds-draft}.md`
+
+Existing files are never overwritten without `--force`. The **`mds`** skill
+covers validation and the repair loop (diagnostic grammar, fix map, value
+encodings); the **`mds-draft`** skill covers the document-to-contract
+roundtrip above. Both resolve the CLI platform- and runtime-independently
+(Windows/POSIX, installed/venv/npx). Cloning *this* repository provides the
+same skills automatically — no installation step needed.
+
+Canonical sources live in [`skills/`](skills/) and all copies are generated
+via `node tools/gen-skills.mjs`.
 
 ## Use as a library
 
@@ -144,10 +181,8 @@ Format and semantic-validation extensions drop in with zero configuration:
 - [Specification (v0.13 Draft)](mds%20-%20Markdown%20Schema.md) — normative
 - [Conformance fixtures](conformance/) — 33 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
+- [Agent skills](skills/) — canonical sources of the bundled agent instructions
 - [Agent guidelines](AGENTS.md) — how coding agents work in this repository
-- `mds draft <doc.md>` — **experimental**: derive a starter contract from an
-  existing document; prose lengths come from the text, `expect:` blocks are
-  TODO stubs (`semantic: optional`) — meant as a tweaking base, not a final spec
 
 ## Development
 
@@ -164,7 +199,8 @@ node js/test/conformance.test.js        # 33/33
 
 Both implementations MUST stay byte-identical on all fixtures. After an
 intentional behavior change regenerate fixtures with
-`node tools/gen-fixtures.mjs` and review the diff carefully.
+`node tools/gen-fixtures.mjs` and review the diff carefully. Agent skills
+are regenerated from `skills/` with `node tools/gen-skills.mjs`.
 
 ## Contributing
 

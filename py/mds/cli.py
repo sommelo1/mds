@@ -152,6 +152,11 @@ def main(argv=None):
             if r["exitCode"] != 0:
                 sys.stderr.write(f"mds: draft self-check failed\n{r['stream']}\n")
                 return 1
+            sys.stderr.write(
+                'mds: draft ready on stdout - replace each "TODO:" expect '
+                'line with real expectations, then re-check with: '
+                'mds validate <doc.md> <schema.mds>\n'
+            )
             return 0
         if cmd == "validate":
             if len(positional) < 3:
