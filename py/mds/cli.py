@@ -19,6 +19,7 @@ from importlib import resources
 
 from .validate import validate_document
 from .introspect import inspect_schema, scaffold_doc
+from .draft import draft_schema
 from .formats import builtin_formats
 from .plugins import discover_plugins
 
@@ -28,6 +29,7 @@ Usage:
   mds validate <doc.md> <schema.mds> [--max N]
   mds inspect <schema.mds>
   mds scaffold <schema.mds>
+  mds draft <doc.md>            # experimental
   mds extensions
   mds skills install [--force]
   mds help
@@ -137,6 +139,17 @@ def main(argv=None):
                 else scaffold_doc(text, positional[1])
             sys.stdout.write(r["stream"] + "\n")
             return r["exitCode"]
+        if cmd == "draft":
+            if len(positional) < 2:
+                return _fail("draft requires a document path")
+            with open(positional[1], "r", encoding="utf-8") as fh:
+                doc_text = fh.read()
+            r = draft_schema(doc_text, positional[1])
+            sys.stdout.write(r["schemaText"])
+            if r["exitCode"] != 0:
+                sys.stderr.write(f"mds: draft self-check failed\n{r['stream']}\n")
+                return 1
+            return 0
         if cmd == "validate":
             if len(positional) < 3:
                 return _fail("validate requires <doc.md> <schema.mds>")

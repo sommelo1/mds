@@ -144,6 +144,9 @@ Format and semantic-validation extensions drop in with zero configuration:
 - [Conformance fixtures](conformance/) — 33 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent guidelines](AGENTS.md) — how coding agents work in this repository
+- `mds draft <doc.md>` — **experimental**: derive a starter contract from an
+  existing document; prose lengths come from the text, `expect:` blocks are
+  TODO stubs (`semantic: optional`) — meant as a tweaking base, not a final spec
 
 ## Development
 

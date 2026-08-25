@@ -18,6 +18,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateDocument } from './validate.js';
 import { inspectSchema, scaffoldDoc } from './introspect.js';
+import { draftSchema } from './draft.js';
 import { builtinFormats } from './formats/index.js';
 import { discoverPlugins } from './plugins.js';
 
@@ -27,6 +28,7 @@ Usage:
   mds validate <doc.md> <schema.mds> [--max N]
   mds inspect <schema.mds>
   mds scaffold <schema.mds>
+  mds draft <doc.md>          # experimental
   mds extensions
   mds skills install [--force]
   mds help
@@ -119,6 +121,20 @@ export async function main(argv) {
         : scaffoldDoc(text, file);
       process.exitCode = r.exitCode;
       process.stdout.write(`${r.stream}\n`);
+      return;
+    }
+    if (cmd === 'draft') {
+      const file = positional[1];
+      if (!file) return fail('draft requires a document path');
+      const r = await draftSchema({
+        docText: readFileSync(file, 'utf8'),
+        docName: file,
+      });
+      process.stdout.write(r.schemaText);
+      if (r.exitCode !== 0) {
+        process.stderr.write(`mds: draft self-check failed\n${r.stream}\n`);
+        process.exitCode = 1;
+      }
       return;
     }
     if (cmd === 'validate') {
