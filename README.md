@@ -168,7 +168,8 @@ Issues and pull requests are welcome. Ground rules:
   approximated; see the
   [limitations table](AGENTS.md#known-mvp-limitations-do-not-fix-silently).
 
-Maintained by **Lorenz**. Contributions from everyone are welcome.
+Maintained by **[Lorenz Sommer](https://www.linkedin.com/in/sommerlorenz/)**.
+Contributions from everyone are welcome.
 
 ## License
 
