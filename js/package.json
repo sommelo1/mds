@@ -1,6 +1,6 @@
 {
   "name": "mds-core",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "MDS — Markdown Document Schema: reference validator, CLI and library. Validates Markdown documents against .mds contracts.",
   "license": "MIT",
   "author": {
