@@ -1,27 +1,27 @@
 ---
-name: mks
+name: mds
 description: >
-  Validate, author and repair Markdown documents against MKS (.mks)
+  Validate, author and repair Markdown documents against MDS (.mds)
   contracts with the bundled reference validator. Best-effort adapter for
   Hermes-compatible skill loaders (same content as the Claude Code skill;
   adjust the discovery path if your Hermes version differs).
 ---
 
-# MKS — Markdown Schema Workflow
+# MDS — Markdown Schema Workflow
 
-MKS validates structured Markdown documents against `.mks` contracts.
-A pair of `document.md` + `document.mks` is a complete validation unit.
+MDS validates structured Markdown documents against `.mds` contracts.
+A pair of `document.md` + `document.mds` is a complete validation unit.
 
 ## When this skill applies
 
-- producing Markdown that must satisfy a `.mks` contract,
-- interpreting `mks validate` output,
+- producing Markdown that must satisfy a `.mds` contract,
+- interpreting `mds validate` output,
 - fixing failures reported as a Markdown diagnostic stream,
-- creating or editing `.mks` schemas.
+- creating or editing `.mds` schemas.
 
 ## The repair loop
 
-1. Locate the contract (`*.mks` beside/near the document or in
+1. Locate the contract (`*.mds` beside/near the document or in
    `docs/schemas/`). Read it first — headings declare sections,
    `- Field: type cardinality` declares typed fields, plus `table`,
    `list`, `prose`, `embed` declarations.
@@ -29,21 +29,21 @@ A pair of `document.md` + `document.mks` is a complete validation unit.
 3. Validate:
 
    ```bash
-   node js/bin/mks.js validate <doc.md> <schema.mks>
-   # or: .venv/Scripts/python.exe -m mks validate <doc.md> <schema.mks>
+   node js/bin/mds.js validate <doc.md> <schema.mds>
+   # or: .venv/Scripts/python.exe -m mds validate <doc.md> <schema.mds>
    ```
 
 4. Read diagnostics (grammar below); fix; repeat until
    `summary: 0 errors, 0 warnings`.
 
 Exit codes: 0 valid · 1 invalid · 2 schema/config broken.
-Exit 2 ⇒ the `.mks` is faulty (codes MKS-C0xx/C4xx): repair the schema
+Exit 2 ⇒ the `.mds` is faulty (codes MDS-C0xx/C4xx): repair the schema
 or escalate; do not compensate in the document.
 
 ## Diagnostic grammar
 
 ```text
-- CODE severity /Path file.ext:L:C [contract schema.mks:N] message
+- CODE severity /Path file.ext:L:C [contract schema.mds:N] message
   - indented items = findings from delegated/embedded validators
 ```
 

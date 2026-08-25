@@ -1,28 +1,28 @@
 ---
-name: mks
+name: mds
 description: >
-  Validate, author and repair Markdown documents against MKS (.mks)
+  Validate, author and repair Markdown documents against MDS (.mds)
   contracts using the bundled reference validator. Covers running the
   validator, reading its Markdown diagnostic stream and the repair loop.
 ---
 
-# MKS — Markdown Schema Workflow
+# MDS — Markdown Schema Workflow
 
-MKS validates structured Markdown documents against `.mks` contracts.
-A pair of `document.md` + `document.mks` is a complete validation unit.
+MDS validates structured Markdown documents against `.mds` contracts.
+A pair of `document.md` + `document.mds` is a complete validation unit.
 
 ## When this skill applies
 
 Use it whenever the task involves:
 
-- producing Markdown that must satisfy a `.mks` contract,
-- interpreting output of the `mks validate` command,
+- producing Markdown that must satisfy a `.mds` contract,
+- interpreting output of the `mds validate` command,
 - fixing validation failures reported as a Markdown diagnostic stream,
-- creating or modifying `.mks` schemas themselves.
+- creating or modifying `.mds` schemas themselves.
 
 ## The repair loop
 
-1. Find the contract: look for `*.mks` near the target document
+1. Find the contract: look for `*.mds` near the target document
    (common locations: `docs/schemas/`, repository root, beside the file).
 2. Read the contract before writing anything. It is short Markdown-like
    text: headings declare sections, `- Field: type cardinality` declares
@@ -34,16 +34,16 @@ Use it whenever the task involves:
    `summary: 0 errors, 0 warnings`.
 
 Exit codes: `0` valid, `1` document invalid, `2` schema/config broken.
-On exit code 2 do NOT touch the document — the `.mks` itself has errors
-(codes `MKS-C0xx`, `MKS-C4xx`); fix or report those instead.
+On exit code 2 do NOT touch the document — the `.mds` itself has errors
+(codes `MDS-C0xx`, `MDS-C4xx`); fix or report those instead.
 
 ## Invocation (this repository)
 
 ```bash
-node js/bin/mks.js validate <doc.md> <schema.mks>      # Node ≥18
-.venv/Scripts/python.exe -m mks validate <doc.md> <schema.mks>   # Windows
-.venv/bin/python -m mks validate <doc.md> <schema.mks>           # POSIX
-mks validate <doc.md> <schema.mks>                     # if installed
+node js/bin/mds.js validate <doc.md> <schema.mds>      # Node ≥18
+.venv/Scripts/python.exe -m mds validate <doc.md> <schema.mds>   # Windows
+.venv/bin/python -m mds validate <doc.md> <schema.mds>           # POSIX
+mds validate <doc.md> <schema.mds>                     # if installed
 ```
 
 Other commands: `inspect`, `scaffold`, `extensions`, `help`.
@@ -53,7 +53,7 @@ Other commands: `inspect`, `scaffold`, `extensions`, `help`.
 One finding per line, rendered as a Markdown list item:
 
 ```text
-- CODE severity /Semantic/Path file.ext:LINE:COL [contract schema.mks:N] message
+- CODE severity /Semantic/Path file.ext:LINE:COL [contract schema.mds:N] message
   - deeper indented items come from delegated/embedded validators
 ```
 
@@ -66,23 +66,23 @@ One finding per line, rendered as a Markdown list item:
 
 | Code | Meaning | Typical fix |
 |---|---|---|
-| MKS-C101 | missing required section | add heading matching label/pattern |
-| MKS-C102 | unexpected section (closed contract) | remove/rename, or relax schema |
-| MKS-C103 | missing document title | add `# Title` |
-| MKS-C201/C202 | wrong order / interleaved repeats | reorder sections |
-| MKS-C203 | required prose/occurrence missing | fill in prose |
-| MKS-C204 | too many occurrences | remove duplicate section/table |
-| MKS-C206 | missing required field | add `- Label: value` |
-| MKS-C207 | unexpected field (closed contract) | remove or rename field |
-| MKS-C301 | value fails type check | see encodings below |
-| MKS-C302 | constraint violated (min/pattern/…) | adjust value |
-| MKS-C303/C304 | enum/const/union mismatch | pick an allowed value |
-| MKS-C305 | collection rule (items/unique) | dedupe or resize |
-| MKS-C501/C502/C503 | embed missing/unexpected/wrong format | fix fenced block |
-| MKS-E001 | embedded JSON syntax error | fix the JSON inside the fence |
-| MKS-E410 | validator extension unavailable | report; needs a plugin, not edits |
+| MDS-C101 | missing required section | add heading matching label/pattern |
+| MDS-C102 | unexpected section (closed contract) | remove/rename, or relax schema |
+| MDS-C103 | missing document title | add `# Title` |
+| MDS-C201/C202 | wrong order / interleaved repeats | reorder sections |
+| MDS-C203 | required prose/occurrence missing | fill in prose |
+| MDS-C204 | too many occurrences | remove duplicate section/table |
+| MDS-C206 | missing required field | add `- Label: value` |
+| MDS-C207 | unexpected field (closed contract) | remove or rename field |
+| MDS-C301 | value fails type check | see encodings below |
+| MDS-C302 | constraint violated (min/pattern/…) | adjust value |
+| MDS-C303/C304 | enum/const/union mismatch | pick an allowed value |
+| MDS-C305 | collection rule (items/unique) | dedupe or resize |
+| MDS-C501/C502/C503 | embed missing/unexpected/wrong format | fix fenced block |
+| MDS-E001 | embedded JSON syntax error | fix the JSON inside the fence |
+| MDS-E410 | validator extension unavailable | report; needs a plugin, not edits |
 
-## Value encodings (prevents MKS-C301)
+## Value encodings (prevents MDS-C301)
 
 - boolean: exactly `true` / `false` (lowercase)
 - date: `YYYY-MM-DD`; datetime/time: RFC 3339 style
