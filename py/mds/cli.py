@@ -102,10 +102,12 @@ def parse_args(argv):
 
 def main(argv=None):
     """CLI main entry. Returns the process exit code."""
-    # Output convention (section 58): plain UTF-8 text on every platform.
+    # Output convention (section 58): UTF-8 with LF line endings on every
+    # platform.  In particular, diagnostics must remain byte-identical to
+    # the Node CLI on Windows, whose streams do not translate newlines.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8")
+            stream.reconfigure(encoding="utf-8", newline="\n")
     if argv is None:
         argv = sys.argv[1:]
     parsed = parse_args(list(argv))

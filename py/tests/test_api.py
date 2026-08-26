@@ -8,6 +8,8 @@ Mirrors ``js/test/api.test.js``.
 import io
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 from mds import validate_document, validate_files, validate_streams
 
@@ -92,3 +94,17 @@ def test_structured_diagnostics():
     assert mismatch["stream"].endswith(
         f"summary: {err_count} errors, {len(diags) - err_count} warnings"
     )
+
+
+def test_cli_diagnostics_use_lf_bytes():
+    """The Python CLI stream must match Node's LF-only wire format."""
+    bad_dir = ROOT / "conformance" / "diagnostics" / "MDS-C101"
+    completed = subprocess.run(
+        [sys.executable, "-m", "mds", "validate", str(bad_dir / "case.md"),
+         str(bad_dir / "case.mds")],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 1
+    assert b"\r\n" not in completed.stdout
