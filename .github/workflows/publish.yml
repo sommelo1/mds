@@ -23,9 +23,8 @@ jobs:
       - name: Run JavaScript test suite
         run: npm test
         working-directory: js
-      - name: Verify npm package contents
-        run: npm pack --dry-run
-        working-directory: js
+      - name: Build and verify npm release artifacts
+        run: node tools/package-js.mjs
       - name: Publish
         run: npm publish --provenance --access public
         working-directory: js

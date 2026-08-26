@@ -432,11 +432,16 @@ publishing:
 
 ```bash
 node tools/package-py.mjs   # clean build + wheel/sdist content check
-cd js && npm pack --dry-run  # verify npm package contents
+node tools/package-js.mjs   # clean npm pack + tarball content check
 ```
 
 The Python release gate checks that `mds/__init__.py`, `mds/__main__.py`,
 `mds/cli.py` and the shipped skills are present in the wheel and sdist.
+The JavaScript gate checks that `bin/mds.js`, `src/cli.js`, `src/index.js`,
+`README.md`, `package.json` and the shipped skills are present in the npm
+tarball.
+Both gates run together because the project ships a Python and a JavaScript
+runtime from the same version line.
 
 ## Support & status
 
