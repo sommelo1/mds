@@ -2,6 +2,17 @@ document Readme
 
 # "MDS — Markdown Document Schema" as title required
 
+## "Watch the Introduction" required
+
+prose required minLength=1
+
+expect:
+  Show a clickable YouTube thumbnail for the MDS introduction video with
+  video id 4rEo9036y2w. It must appear before the Why MDS section.
+
+validate:
+  semantic: optional
+
 ## Why MDS? required
 
 embed text

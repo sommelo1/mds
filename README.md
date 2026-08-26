@@ -13,6 +13,10 @@ structure, types and constraints, plus native **semantic expectations**
 > must contain. MDS adds that missing layer — for humans writing docs, for
 > AI-generated documents, and for the acceptance test between the two.
 
+## Watch the Introduction
+
+[![Watch the MDS introduction](https://img.youtube.com/vi/4rEo9036y2w/maxresdefault.jpg)](https://youtu.be/4rEo9036y2w)
+
 ## Why MDS?
 
 | | |
