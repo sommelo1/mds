@@ -7,6 +7,10 @@ import { spawnSync } from 'node:child_process';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const version = process.argv[2];
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const pythonCmd = process.platform === 'win32'
+  ? join(root, '.venv', 'Scripts', 'python.exe')
+  : join(root, '.venv', 'bin', 'python');
 
 function fail(msg) {
   console.error(msg);
@@ -41,10 +45,8 @@ if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
 for (const [cmd, args] of [
   ['git', ['--version']],
   ['node', ['--version']],
-  ['npm', ['--version']],
-  [process.platform === 'win32'
-    ? join(root, '.venv', 'Scripts', 'python.exe')
-    : join(root, '.venv', 'bin', 'python'), ['--version']],
+  [npmCmd, ['--version']],
+  [pythonCmd, ['--version']],
 ]) {
   try {
     runQuiet(cmd, args, root);
@@ -78,8 +80,8 @@ replace('mds - Markdown Schema.md', `**Version:** ${current}`, `**Version:** ${v
 replace('README.md', `Specification (v${current} Beta)`, `Specification (v${version} Beta)`);
 replace('README.md', `Current release: **${current}**`, `Current release: **${version}**`);
 
-run('npm', ['test'], join(root, 'js'));
-run(join(root, '.venv', 'Scripts', 'python.exe'), ['-m', 'pytest', 'py/tests', '-q'], root);
+run(npmCmd, ['test'], join(root, 'js'));
+run(pythonCmd, ['-m', 'pytest', 'py/tests', '-q'], root);
 run('node', ['tools/package-js.mjs'], root);
 run('node', ['tools/package-py.mjs'], root);
 run('git', ['add',
