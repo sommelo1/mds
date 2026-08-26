@@ -797,14 +797,19 @@ def validate_document(*, doc_text, doc_name="case.md", schema_text,
                       enable_optional_libs=False):
     """Validate a Markdown document against a schema contract.
 
-    Returns ``{"exitCode": int, "stream": str}``.
+    Returns ``{"exitCode": int, "stream": str, "diagnostics": list}`` where
+    ``stream`` is the LLM/human-readable Markdown line output and
+    ``diagnostics`` carries the same findings as structured dicts (camelCase
+    keys: code, severity, path, file, line, column, message, contractFile,
+    contractLine, depth) for programmatic analysis.
     """
     loaded = load_schema(schema_text, schema_name, base_dir)
     model = loaded["model"]
     load_diags = loaded["diags"]
     schema_errors = [d for d in load_diags if d.severity == SEVERITY_ERROR]
     if schema_errors:
-        return {"exitCode": 2, "stream": render_stream(schema_errors, max_diagnostics)}
+        return {"exitCode": 2, "stream": render_stream(schema_errors, max_diagnostics),
+                "diagnostics": [d.to_object() for d in schema_errors]}
 
     plugins = discover_plugins()
     registry = _build_registry(builtin_formats(enable_optional_libs), plugins)
@@ -844,7 +849,8 @@ def validate_document(*, doc_text, doc_name="case.md", schema_text,
     diags = [*pre, *run_core(doc, model, env)]
     errors = sum(1 for d in diags if d.severity == SEVERITY_ERROR)
     return {"exitCode": 1 if errors > 0 else 0,
-            "stream": render_stream(diags, max_diagnostics)}
+            "stream": render_stream(diags, max_diagnostics),
+            "diagnostics": [d.to_object() for d in diags]}
 
 
 def validate_files(doc_path, schema_path, *, max_diagnostics=None,

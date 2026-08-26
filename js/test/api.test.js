@@ -51,5 +51,26 @@ const sliced = await validateStreams({
 });
 check('streams: utf8-safe across byte splits', JSON.stringify(sliced) === JSON.stringify(files));
 
+// structured diagnostics: programmatic access alongside the rendered stream
+check('valid run: empty diagnostics array', Array.isArray(files.diagnostics) && files.diagnostics.length === 0);
+
+const badDoc = readFileSync(join(root, 'examples', 'draft-roundtrip.md'), 'utf8');
+const mismatch = await validateDocument({
+  docText: badDoc, schemaText,
+  docName: 'draft-roundtrip.md', schemaName: 'person.mds', baseDir: root,
+});
+const d0 = mismatch.diagnostics[0] ?? {};
+check('mismatch: one structured finding',
+  mismatch.exitCode === 1 &&
+  mismatch.diagnostics.length === 1 &&
+  d0.code === 'MDS-C101' &&
+  d0.severity === 'error' &&
+  typeof d0.message === 'string' &&
+  d0.contractFile === 'person.mds' &&
+  Number.isInteger(d0.contractLine),
+  JSON.stringify(mismatch.diagnostics));
+const errCount = mismatch.diagnostics.filter((d) => d.severity === 'error').length;
+check('summary count matches diagnostics array', mismatch.stream.endsWith(`summary: ${errCount} errors, ${mismatch.diagnostics.length - errCount} warnings`));
+
 process.exitCode = failed ? 1 : 0;
 console.log(failed ? 'api tests: FAILURES' : 'api tests: all checks passed');

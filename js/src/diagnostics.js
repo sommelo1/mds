@@ -111,6 +111,27 @@ export class Diagnostic {
     }
     return `${s} ${this.message}`;
   }
+
+  /**
+   * Plain-object form for programmatic consumption (returned alongside the
+   * rendered stream). Keys are camelCase and identical across the
+   * JavaScript and Python implementations.
+   * @returns {object}
+   */
+  toObject() {
+    return {
+      code: this.code,
+      severity: this.severity,
+      path: this.path,
+      file: this.file,
+      line: this.line,
+      column: this.column,
+      message: this.message,
+      contractFile: this.contractFile,
+      contractLine: this.contractLine,
+      depth: this.depth,
+    };
+  }
 }
 
 /**

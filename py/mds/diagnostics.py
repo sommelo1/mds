@@ -92,6 +92,23 @@ class Diagnostic:
             s += f" contract {self.contract_file}:{self.contract_line}"
         return f"{s} {self.message}"
 
+    def to_object(self):
+        """Plain-dict form for programmatic consumption (returned alongside
+        the rendered stream). Keys are camelCase and identical across the
+        Python and JavaScript implementations."""
+        return {
+            "code": self.code,
+            "severity": self.severity,
+            "path": self.path,
+            "file": self.file,
+            "line": self.line,
+            "column": self.column,
+            "message": self.message,
+            "contractFile": self.contract_file,
+            "contractLine": self.contract_line,
+            "depth": self.depth,
+        }
+
 
 def render_stream(diags, max_diags=None):
     """Render the complete diagnostic stream for a run.

@@ -65,3 +65,30 @@ def test_api_surface_parity():
                          ("BytesIO", r_bytesio)):
         assert json.dumps(result, sort_keys=True) == json.dumps(files, sort_keys=True), \
             f"{name} entry point must match file entry point"
+
+
+def test_structured_diagnostics():
+    """Programmatic access: exitCode + stream + structured diagnostics."""
+    files = validate_files(DOC_PATH, SCHEMA_PATH)
+    assert files["diagnostics"] == [], "valid run must yield an empty array"
+
+    bad_doc = (ROOT / "examples" / "draft-roundtrip.md").read_text(encoding="utf-8")
+    schema_text = SCHEMA_PATH.read_text(encoding="utf-8")
+    mismatch = validate_document(
+        doc_text=bad_doc, schema_text=schema_text,
+        doc_name="draft-roundtrip.md", schema_name="person.mds",
+        base_dir=str(ROOT),
+    )
+    assert mismatch["exitCode"] == 1
+    diags = mismatch["diagnostics"]
+    assert len(diags) == 1
+    d0 = diags[0]
+    assert d0["code"] == "MDS-C101"
+    assert d0["severity"] == "error"
+    assert isinstance(d0["message"], str) and d0["message"]
+    assert d0["contractFile"] == "person.mds"
+    assert isinstance(d0["contractLine"], int)
+    err_count = sum(1 for d in diags if d["severity"] == "error")
+    assert mismatch["stream"].endswith(
+        f"summary: {err_count} errors, {len(diags) - err_count} warnings"
+    )

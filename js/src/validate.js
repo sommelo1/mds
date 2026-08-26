@@ -762,7 +762,11 @@ export async function validateDocument({
   const { model, diags: loadDiags } = loadSchema(schemaText, schemaName, baseDir);
   const schemaErrors = loadDiags.filter((d) => d.severity === SEVERITY.ERROR);
   if (schemaErrors.length > 0) {
-    return { exitCode: 2, stream: renderStream(schemaErrors, maxDiagnostics) };
+    return {
+      exitCode: 2,
+      stream: renderStream(schemaErrors, maxDiagnostics),
+      diagnostics: schemaErrors.map((d) => d.toObject()),
+    };
   }
 
   const plugins = await discoverPlugins(process.cwd());
@@ -793,7 +797,11 @@ export async function validateDocument({
   };
   const diags = [...pre, ...runCore(doc, model, env)];
   const errors = diags.filter((d) => d.severity === SEVERITY.ERROR).length;
-  return { exitCode: errors > 0 ? 1 : 0, stream: renderStream(diags, maxDiagnostics) };
+  return {
+    exitCode: errors > 0 ? 1 : 0,
+    stream: renderStream(diags, maxDiagnostics),
+    diagnostics: diags.map((d) => d.toObject()),
+  };
 }
 
 /**

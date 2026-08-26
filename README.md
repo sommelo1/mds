@@ -272,10 +272,26 @@ const { exitCode } = await validateStreams({
 console.log(exitCode);
 ```
 
-All three entry points return plain data (`{ exitCode, stream }`) and
-produce identical verdicts with byte-identical diagnostic streams for the
-same content — the `stream` field is exactly what the CLI prints, so tests
-can assert against fixture bytes.
+All three entry points return the same three-part result:
+
+| Field | Audience | Content |
+|---|---|---|
+| `exitCode` | machines | `0` valid · `1` invalid · `2` broken contract |
+| `diagnostics` | **code** | array of structured findings: `{ code, severity, path, file, line, column, message, contractFile, contractLine, depth }` — identical keys in JS and Python |
+| `stream` | **LLMs & humans** | the rendered Markdown diagnostic lines plus `summary:` — exactly what the CLI prints |
+
+```js
+console.log(r.diagnostics[0].code);      // e.g. 'MDS-C101'
+console.log(r.diagnostics[0].line);      // jump target for editors/CI
+```
+
+```python
+print(r["diagnostics"][0]["code"])
+print(r["diagnostics"][0]["line"])
+```
+
+So pipelines can branch on `exitCode`, tools can act on `diagnostics`, and
+the same run can be pasted into an LLM repair prompt as `stream`.
 
 ## Extensions — no core rebuilds
 
