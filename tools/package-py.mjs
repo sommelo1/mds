@@ -1,15 +1,24 @@
 #!/usr/bin/env node
 
-import { readFileSync, rmSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const pyDir = join(root, 'py');
-const pyExe = process.platform === 'win32'
+const localPyExe = process.platform === 'win32'
   ? join(root, '.venv', 'Scripts', 'python.exe')
   : join(root, '.venv', 'bin', 'python');
+
+function resolvePythonExe() {
+  if (existsSync(localPyExe)) {
+    return localPyExe;
+  }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
+const python = resolvePythonExe();
 
 function run(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: false });
@@ -20,8 +29,8 @@ for (const p of [join(pyDir, 'build'), join(pyDir, 'dist'), join(pyDir, 'mds_cor
   rmSync(p, { recursive: true, force: true });
 }
 
-run(pyExe, ['-m', 'pip', 'install', '--quiet', 'build'], root);
-run(pyExe, ['-m', 'build'], pyDir);
+run(python, ['-m', 'pip', 'install', '--quiet', 'build'], root);
+run(python, ['-m', 'build'], pyDir);
 
 const version = JSON.parse(readFileSync(join(root, 'js', 'package.json'), 'utf8')).version;
 const pyproject = readFileSync(join(pyDir, 'pyproject.toml'), 'utf8');
@@ -64,6 +73,6 @@ if wheel_missing or sdist_missing:
 print(wheel.name)
 print(sdist.name)
 `;
-run(pyExe, ['-c', check, join(pyDir, 'dist')], root);
+run(python, ['-c', check, join(pyDir, 'dist')], root);
 
 console.log(`Built Python package artifacts for ${version}`);

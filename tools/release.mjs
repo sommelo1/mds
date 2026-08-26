@@ -47,11 +47,14 @@ run(join(root, '.venv', 'Scripts', 'python.exe'), ['-m', 'pytest', 'py/tests', '
 run('node', ['tools/package-js.mjs'], root);
 run('node', ['tools/package-py.mjs'], root);
 run('git', ['add',
+  '.github/workflows/publish.yml',
   'README.md',
   'js/package.json',
   'mds - Markdown Schema.md',
   'py/mds/__init__.py',
   'py/pyproject.toml',
+  'tools/package-js.mjs',
+  'tools/package-py.mjs',
   'tools/release.mjs',
 ], root);
 run('git', ['commit', '-m', `Release ${version}`], root);
