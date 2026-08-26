@@ -13,7 +13,7 @@
  *
  * @module mds-core
  */
-export { validateDocument, validateFiles, loadSchema } from './validate.js';
+export { validateDocument, validateFiles, validateStreams, drainText, loadSchema } from './validate.js';
 export { parseDocument, normLabel, headingMatches, flattenSections } from './mddoc.js';
 export { parseSchema, effectiveFlags } from './schema.js';
 export { Diagnostic, CODES, SEVERITY, renderStream, verdictOf } from './diagnostics.js';

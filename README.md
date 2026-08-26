@@ -143,28 +143,78 @@ and LLM repair loops.
 
 ```js
 // Node: npm i mds-core
-import { validateFiles } from 'mds-core';
+import { readFileSync } from 'node:fs';
+import { Readable } from 'node:stream';
+import { validateFiles, validateDocument, validateStreams } from 'mds-core';
 
-const { exitCode, stream } = await validateFiles({
-  docPath: 'doc.md',
-  schemaPath: 'doc.mds',
-});                                   // paths are read AND used as labels
-console.log(exitCode, stream);
+// A minimal document/contract pair, inline so you can see how they fit:
+const docText = `# Shopping Note
+
+## Body
+
+Buy oat milk.`;
+
+const schemaText = `document Note
+
+# "*" as title required
+
+## Body required
+
+prose required minLength=1`;
+
+// 1) Files — paths are read AND used as diagnostic labels
+const r1 = await validateFiles({ docPath: 'doc.md', schemaPath: 'doc.mds' });
+
+// 2) Strings — content from templates, stdin or LLM output (labels optional)
+const r2 = await validateDocument({ docText, schemaText });
+
+// 3) Streams — transport hooks that deliver chunks: Node/Web streams or
+//    any iterable of string/utf8 chunks
+const r3 = await validateStreams({
+  docStream: Readable.from([docText]),
+  schemaStream: Readable.from([schemaText]),
+});
+
+console.log(r1.exitCode === r2.exitCode && r2.exitCode === r3.exitCode); // true
 ```
 
 ```python
 # pip install mds-core
-from mds import validate_files
+import io
+from mds import validate_files, validate_document, validate_streams
 
-r = validate_files("doc.md", "doc.mds")   # paths are read AND become labels
-print(r["exitCode"], r["stream"])
+# A minimal document/contract pair, inline so you can see how they fit:
+doc_text = """# Shopping Note
+
+## Body
+
+Buy oat milk."""
+
+schema_text = """document Note
+
+# "*" as title required
+
+## Body required
+
+prose required minLength=1"""
+
+# 1) Files - paths are read AND used as diagnostic labels
+r1 = validate_files("doc.md", "doc.mds")
+
+# 2) Strings - content from templates, stdin or LLM output (labels optional)
+r2 = validate_document(doc_text=doc_text, schema_text=schema_text)
+
+# 3) Streams - transport hooks that deliver chunks: file objects,
+#    StringIO/BytesIO, any iterable of str or utf8 chunks
+r3 = validate_streams(io.StringIO(doc_text), io.StringIO(schema_text))
+
+print(r1["exitCode"] == r2["exitCode"] == r3["exitCode"])  # True
 ```
 
 Results are plain data; the stream is exactly what the CLI prints, so tests
-can assert against fixture bytes. When your content does not come from files
-(templates, stdin, LLM output), use the string-based core instead:
-`validate_document(doc_text=…, schema_text=…)` — names are optional there
-and only label the diagnostic paths.
+can assert against fixture bytes. Labels follow the entry point: file-based
+calls use their paths, string- and stream-based calls default to
+`case.md`/`case.mds` unless you pass names yourself.
 
 ## Extensions — no core rebuilds
 

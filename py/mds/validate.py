@@ -869,3 +869,53 @@ def validate_files(doc_path, schema_path, *, max_diagnostics=None,
         base_dir=base_dir, max_diagnostics=max_diagnostics,
         enable_optional_libs=enable_optional_libs,
     )
+
+
+def _decode_chunk(chunk):
+    """Decode one stream chunk (utf8 bytes or already-decoded string)."""
+    if isinstance(chunk, (bytes, bytearray)):
+        return bytes(chunk).decode("utf-8")
+    return chunk if isinstance(chunk, str) else str(chunk)
+
+
+def drain_text(source):
+    """Drain any text source into one UTF-8 string.
+
+    Plain strings pass through; file-like objects are read to EOF and plain
+    iterables are joined chunk by chunk.
+    """
+    if isinstance(source, str):
+        return source
+    read = getattr(source, "read", None)
+    if read is not None:
+        parts = []
+        while True:
+            chunk = read()
+            if not chunk:
+                break
+            parts.append(_decode_chunk(chunk))
+        return "".join(parts)
+    return "".join(_decode_chunk(chunk) for chunk in source)
+
+
+def validate_streams(doc_stream, schema_stream, *, doc_name="case.md",
+                     schema_name="case.mds", base_dir=".",
+                     max_diagnostics=None, enable_optional_libs=False):
+    """Validate a document/schema pair from text streams.
+
+    Transport-layer convenience for hooks that deliver content as streams
+    instead of files or fully buffered strings: file-like objects (opened
+    files, ``io.StringIO``/``io.BytesIO``) and plain iterables of string or
+    utf8 chunks are drained and fed through :func:`validate_document`.
+    Streams carry no filename, so the optional labels name the diagnostics.
+
+    Returns ``{"exitCode": int, "stream": str}``.
+    """
+    doc_text = drain_text(doc_stream)
+    schema_text = drain_text(schema_stream)
+    return validate_document(
+        doc_text=doc_text, doc_name=doc_name,
+        schema_text=schema_text, schema_name=schema_name,
+        base_dir=base_dir, max_diagnostics=max_diagnostics,
+        enable_optional_libs=enable_optional_libs,
+    )

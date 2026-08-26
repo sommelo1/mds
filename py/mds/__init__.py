@@ -21,15 +21,21 @@ from .diagnostics import (
 from .mddoc import flatten_sections, heading_matches, norm_label, parse_document
 from .schema import effective_flags, parse_schema
 from .introspect import inspect_schema, scaffold_doc
-from .validate import load_schema, validate_document, validate_files
+from .validate import (
+    drain_text,
+    load_schema,
+    validate_document,
+    validate_files,
+    validate_streams,
+)
 
 __version__ = "0.14.0"
 
 __all__ = [
     "CODES", "Diagnostic", "SEVERITY_ERROR", "SEVERITY_INFO", "SEVERITY_WARNING",
-    "effective_flags", "flatten_sections", "heading_matches", "inspect_schema",
-    "load_schema", "norm_label", "parse_document", "parse_schema",
-    "render_stream", "scaffold_doc", "validate_document", "validate_files",
-    "verdict_of",
+    "drain_text", "effective_flags", "flatten_sections", "heading_matches",
+    "inspect_schema", "load_schema", "norm_label", "parse_document",
+    "parse_schema", "render_stream", "scaffold_doc", "validate_document",
+    "validate_files", "validate_streams", "verdict_of",
     "__version__",
 ]

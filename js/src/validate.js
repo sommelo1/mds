@@ -827,3 +827,62 @@ export async function validateFiles({
     enableOptionalLibs,
   });
 }
+
+/** Decode one stream chunk (utf8 bytes or already-decoded string). */
+const decodeChunk = (chunk) =>
+  typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+
+/**
+ * Drain any text source into one UTF-8 string: plain strings pass through,
+ * Node/Web streams and iterables are consumed chunk by chunk.
+ *
+ * @param {string|Iterable<string|Uint8Array>|AsyncIterable<string|Uint8Array>} input
+ * @returns {Promise<string>}
+ */
+export async function drainText(input) {
+  if (typeof input === 'string') return input;
+  let out = '';
+  if (input[Symbol.asyncIterator]) {
+    for await (const chunk of input) out += decodeChunk(chunk);
+  } else {
+    for (const chunk of input) out += decodeChunk(chunk);
+  }
+  return out;
+}
+
+/**
+ * Validate a document/schema pair from text streams.
+ *
+ * Transport-layer convenience for hooks that deliver content as streams
+ * instead of files or fully buffered strings: Node/Web readable streams and
+ * plain (sync or async) iterables of string/utf8 chunks are drained and fed
+ * through {@link validateDocument}. Streams carry no filename, so the
+ * optional `docName`/`schemaName` label the diagnostics (defaults apply).
+ *
+ * @param {object} opts
+ * @param {object} opts.docStream document source (stream/iterable/string)
+ * @param {object} opts.schemaStream contract source (stream/iterable/string)
+ * @param {string} [opts.docName='case.md'] diagnostic label for the document
+ * @param {string} [opts.schemaName='case.mds'] diagnostic label for the contract
+ * @param {string} [opts.baseDir='.'] resolves `$include` imports
+ * @param {number|null} [opts.maxDiagnostics=null]
+ * @param {boolean} [opts.enableOptionalLibs=false]
+ * @returns {Promise<{exitCode:number, stream:string}>}
+ */
+export async function validateStreams({
+  docStream,
+  schemaStream,
+  docName = 'case.md',
+  schemaName = 'case.mds',
+  baseDir = '.',
+  maxDiagnostics = null,
+  enableOptionalLibs = false,
+}) {
+  const [docText, schemaText] = await Promise.all([
+    drainText(docStream),
+    drainText(schemaStream),
+  ]);
+  return validateDocument({
+    docText, docName, schemaText, schemaName, baseDir, maxDiagnostics, enableOptionalLibs,
+  });
+}
