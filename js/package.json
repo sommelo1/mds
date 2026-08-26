@@ -1,6 +1,6 @@
 {
   "name": "mds-core",
-  "version": "0.15.2",
+  "version": "0.16.0",
   "description": "MDS — Markdown Document Schema: validate Markdown against .mds contracts from files, strings or streams — deterministic structure, types and constraints plus LLM-readable expectations and structured diagnostics.",
   "license": "MIT",
   "author": {
@@ -42,7 +42,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test/conformance.test.js && node test/draft.e2e.test.js && node test/api.test.js",
+    "test": "node test/conformance.test.js && node test/draft.e2e.test.js && node test/api.test.js && node test/skills.test.js",
     "test:watch": "node --watch-path=../conformance test/conformance.test.js",
     "docs": "npx -y jsdoc -c jsdoc.json"
   }

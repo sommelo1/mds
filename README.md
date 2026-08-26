@@ -155,18 +155,43 @@ mds skills install                                # after installing mds-core
 npx --yes --package=mds-core mds skills install   # without installing
 ```
 
-This writes six files — two skills for each supported agent:
+This writes twelve files — four skills for each supported agent:
 
-- `.claude/skills/mds/SKILL.md` + `.claude/skills/mds-draft/SKILL.md`
-- `.hermes/skills/{mds,mds-draft}/SKILL.md`
-- `.kilo/command/{mds,mds-draft}.md`
+- `.claude/skills/{mds-validate,mds-write,mds-draft,mds-install}/SKILL.md`
+- `.hermes/skills/{mds-validate,mds-write,mds-draft,mds-install}/SKILL.md`
+- `.kilo/skills/{mds-validate,mds-write,mds-draft,mds-install}/SKILL.md`
 
-Existing files are never overwritten without `--force`. The **`mds`** skill
-covers validation and the repair loop (diagnostic grammar, fix map, value
-encodings); the **`mds-draft`** skill covers the document-to-contract
-roundtrip above. Both resolve the CLI platform- and runtime-independently
-(Windows/POSIX, installed/venv/npx). Cloning *this* repository provides the
-same skills automatically — no installation step needed.
+Existing files are never overwritten without `--force`. Each skill is a
+short loop around the deterministic CLI: **`mds-validate`** runs the
+validator and repairs until clean (`0` done · `1` fix document ·
+`2` fix contract); **`mds-write`** generates a document against a
+contract; **`mds-draft`** covers the document-to-contract roundtrip
+above; **`mds-install`** is the exceptional path that resolves or
+installs the CLI when none is available. All resolve the CLI platform-
+and runtime-independently (Windows/POSIX, installed/venv/npx). Cloning
+*this* repository provides the same skills automatically — no
+installation step needed. All four share one enforced anatomy (front
+matter, identical CLI resolution, per-skill workflow) and validate
+against [`skills/skills.mds`](skills/skills.mds); the resolution
+section's canonical text is stored verbatim in that contract's
+`expect:` block and injected into every copy — written once,
+byte-identical everywhere. Both test suites enforce the contract.
+
+| Skill | Use it for | What it does |
+|---|---|---|
+| `mds-validate` | an existing document and contract | Validates, reads the deterministic diagnostic stream, repairs the document or contract according to the exit code, then checks each semantic `expect:` block. |
+| `mds-write` | a contract and a new document | Reads the full contract, writes only the required Markdown structure and values, then hands off to the validation loop. |
+| `mds-draft` | an existing Markdown document | Runs `mds draft`, replaces its `TODO:` expectation stubs with real content requirements, validates the result, then uses `scaffold` as a roundtrip check. |
+| `mds-install` | no usable `mds` command | Probes installed, venv and ad-hoc CLI invocations; only when none work, installs the package persistently and verifies the command. |
+
+`mds-install` is deliberately an exceptional skill: the other three try
+the resolution ladder first and invoke it only when no CLI is available.
+Skills never invent document facts merely to make a validation finding
+disappear; `optional` permits missing structure, while `nullable` permits
+an explicitly present but unknown value.
+
+Codex and other AGENTS.md-only agents have no skill discovery; `AGENTS.md`
+in this repository points them at all four canonical skills in `skills/`.
 
 Canonical sources live in [`skills/`](skills/) and all copies are generated
 via `node tools/gen-skills.mjs`.
@@ -399,6 +424,7 @@ Issues and pull requests are welcome. Ground rules:
 ## Support & status
 
 - Questions and bugs: [GitHub Issues](../../issues)
+- Current release: **0.16.0**
 - Status: **beta (0.x)** against a draft specification — expect breaking
   changes before 1.0. Composition (`oneOf/allOf/anyOf/not`), conditional
   contracts (`when`), granular `$ref#Name` imports and typed metadata are

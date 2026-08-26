@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mds-core"
-version = "0.15.2"
+version = "0.16.0"
 description = "MDS - Markdown Document Schema: validate Markdown against .mds contracts from files, strings or streams - deterministic structure, types and constraints plus LLM-readable expectations and structured diagnostics."
 readme = "README.md"
 license = "MIT"

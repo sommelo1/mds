@@ -37,8 +37,10 @@ const CANNED = {
 };
 const fillTodo = (schemaText) =>
   schemaText.replace(
-    /^(\s*)TODO: describe what the (.+) section must convey\.$/gm,
-    (_m, indent, label) => `${indent}${CANNED[label] ?? `The ${label} section states its key facts concisely.`}`,
+    /^(\s*)TODO: describe what the (.+) (section must convey|(\w+) must show)\.$/gm,
+    (_m, indent, label, kind, noun) => `${indent}${kind === 'section must convey'
+      ? (CANNED[label] ?? `The ${label} section states its key facts concisely.`)
+      : `The ${noun} shows the content this document requires.`}`,
   );
 
 const docText = readFileSync(docPath, 'utf8');
@@ -65,7 +67,9 @@ const labels = flattenSections(doc.sections)
   .map((s) => s.label);
 const missing = labels.filter((l) => !skel.includes(`## ${l}`));
 check('roundtrip keeps all section titles', missing.length === 0, missing.join(', '));
-check('roundtrip keeps title', doc.title === null || skel.includes('<Title>'));
+// exact titles print their literal text; only glob titles scaffold a
+// `<Title>` placeholder — drafts always derive exact titles now
+check('roundtrip keeps title', doc.title === null || skel.includes(doc.title.text));
 
 const flat = flattenSections(doc.sections).map(({ sec }) => sec);
 const tbl = flat.flatMap((s) => s.tables)[0];
@@ -102,6 +106,228 @@ check('gap draft self-check passes', gdraft.exitCode === 0, gdraft.stream);
 check('gap draft marks empty column nullable', /^- B: integer nullable$/m.test(gdraft.schemaText), gdraft.schemaText);
 check('gap draft marks empty field nullable', /^- Score: string nullable$/m.test(gdraft.schemaText));
 check('gap draft keeps required concrete column', /^- A: integer$/m.test(gdraft.schemaText));
+
+// Scenario 3 — five draft defects pinned as regressions. Each document
+// previously made the self-check fail (exit 1) or produced wrong output.
+
+// 3a. multiple H1 headings: exact title, other H1s become top-level
+//     sections at their real level (glob "*" consumed them all).
+const multiH1Doc = `# Report
+
+## Intro
+
+Some intro text here.
+
+# Appendix A
+
+Appendix prose.
+
+# Appendix B
+
+More appendix prose.
+`;
+const mdraft = await draftSchema({ docText: multiH1Doc, docName: 'multi.md' });
+check('multi-H1 self-check passes', mdraft.exitCode === 0, mdraft.stream);
+check('multi-H1 exact title', /^# "Report" as title required$/m.test(mdraft.schemaText));
+check('multi-H1 chapters at level 1', /^# Appendix A required$/m.test(mdraft.schemaText));
+
+// 3b. fenced example content must not leak into structure
+const fencedDoc = `# Doc
+
+## Real
+
+Real prose.
+
+\`\`\`mds
+# Fake Heading
+
+- Fake: value
+
+| FakeCol |
+|---------|
+| x       |
+\`\`\`
+`;
+const fdraft = await draftSchema({ docText: fencedDoc, docName: 'fenced.md' });
+check('fenced self-check passes', fdraft.exitCode === 0, fdraft.stream);
+check('fenced content ignored', !fdraft.schemaText.includes('Fake'), fdraft.schemaText);
+
+// 3c. nested subsections bind at their real heading level
+const nestedDoc = `# Doc
+
+## Parent
+
+Parent prose.
+
+### Child
+
+Child prose.
+`;
+const ndraft = await draftSchema({ docText: nestedDoc, docName: 'nested.md' });
+check('nested self-check passes', ndraft.exitCode === 0, ndraft.stream);
+check('nested child at level 3', /^### Child required$/m.test(ndraft.schemaText));
+
+// 3d. ragged tables: rows longer than the header create no phantom column
+const raggedDoc = `# Doc
+
+## Data
+
+| A | B |
+|---|---|
+| 1 | 2 | extra |
+| 3 | 4 |
+`;
+const rdraft = await draftSchema({ docText: raggedDoc, docName: 'ragged.md' });
+check('ragged self-check passes', rdraft.exitCode === 0, rdraft.stream);
+check('no phantom column', !/- : /.test(rdraft.schemaText), rdraft.schemaText);
+
+// 3e. emphasis-wrapped bullet labels become plain fields
+const boldDoc = `# Doc
+
+## Ext
+
+- **Formats**: embed svg and csv
+- Plain: value
+`;
+const bdraft = await draftSchema({ docText: boldDoc, docName: 'bold.md' });
+check('bold-label self-check passes', bdraft.exitCode === 0, bdraft.stream);
+check('emphasis stripped from field label', /^- Formats: string$/m.test(bdraft.schemaText));
+
+// 3f. content order follows the document (table before prose), and
+//     non-expressible alternation relaxes the section with `order any`
+const orderDoc = `# Doc
+
+## Mixed
+
+| X | Y |
+|---|---|
+| 1 | 2 |
+
+Table first prose after.
+
+## Alternating
+
+Open prose.
+
+| A |
+|---|
+| 1 |
+
+Closing prose.
+`;
+const odraft = await draftSchema({ docText: orderDoc, docName: 'order.md' });
+check('order self-check passes', odraft.exitCode === 0, odraft.stream);
+const mixedIdx = odraft.schemaText.indexOf('table Mixed');
+const mixedProse = odraft.schemaText.indexOf('prose required minLength', mixedIdx);
+check('table declared before its trailing prose', mixedIdx > -1 && mixedProse > mixedIdx);
+check('alternating section stays prose-unbound',
+  !/## Alternating required[\s\S]*?^prose /m.test(odraft.schemaText));
+
+// 3g. emphasis-wrapped table headers become plain column names
+const emphDoc = `# Doc
+
+## Matrix
+
+| *Structural* | **Data** |
+|--------------|----------|
+| a            | b        |
+`;
+const edraft = await draftSchema({ docText: emphDoc, docName: 'emph.md' });
+check('emphasized headers self-check passes', edraft.exitCode === 0, edraft.stream);
+check('emphasis stripped from columns', /^- Structural: string$/m.test(edraft.schemaText)
+  && /^- Data: string$/m.test(edraft.schemaText));
+
+// 3h. embedded diagrams/content bind as embeds WITH expect stubs — every
+//     observed fence language is declared, unknown ones included
+const embedDoc = `# Doc
+
+## Diagram
+
+Some context.
+
+\`\`\`mermaid
+flowchart TD
+    A --> B
+\`\`\`
+
+## Sometimes
+
+Text only.
+
+## Always
+
+Intro.
+
+\`\`\`mermaid
+flowchart LR
+    C --> D
+\`\`\`
+
+\`\`\`note
+sticky content
+\`\`\`
+`;
+const vdraft = await draftSchema({ docText: embedDoc, docName: 'viz.md' });
+check('embed self-check passes', vdraft.exitCode === 0, vdraft.stream);
+check('mermaid bound required in its sections', /^embed mermaid$/m.test(vdraft.schemaText)
+  && !/^embed mermaid optional$/m.test(vdraft.schemaText));
+check('unknown language bound too', /^embed note$/m.test(vdraft.schemaText));
+check('embed carries expect stub',
+  /embed mermaid\n\nexpect:\n {2}TODO: describe what the diagram must show\./
+    .test(vdraft.schemaText));
+check('embed binds semantic optional',
+  /embed note\n\nexpect:[\s\S]*?validate:\n {2}semantic: optional/.test(vdraft.schemaText));
+
+// 3i. embeds pair POSITIONALLY: mixed-language sections emit one slot per
+//     fence in document order; prose-fence-prose stays prose-unbound
+const mixedFenceDoc = `# Doc
+
+## Gallery
+
+Intro sentence.
+
+\`\`\`mds
+document Example
+\`\`\`
+
+Middle words.
+
+\`\`\`text
+raw notes
+\`\`\`
+
+Closing words.
+
+\`\`\`mermaid
+flowchart TD
+    A --> B
+\`\`\`
+`;
+const mfdraft = await draftSchema({ docText: mixedFenceDoc, docName: 'mixed.md' });
+check('mixed fences self-check passes', mfdraft.exitCode === 0, mfdraft.stream);
+const slotOrder = ['embed mds', 'embed text', 'embed mermaid']
+  .map((p) => mfdraft.schemaText.indexOf(p));
+check('three slots in document order', slotOrder.every((i) => i > -1)
+  && slotOrder[0] < slotOrder[1] && slotOrder[1] < slotOrder[2]);
+check('slot languages exact', !mfdraft.schemaText.includes('contract expects'));
+
+const pepDoc = `# Doc
+
+## Wrapped
+
+Before the block.
+
+\`\`\`json
+{"a": 1}
+\`\`\`
+
+After the block.
+`;
+const pddraft = await draftSchema({ docText: pepDoc, docName: 'pep.md' });
+check('prose-fence-prose self-check passes', pddraft.exitCode === 0, pddraft.stream);
+check('wrapped keeps embed, drops prose',
+  !/## Wrapped required[\s\S]*?^prose /m.test(pddraft.schemaText)
+  && /^embed json$/m.test(pddraft.schemaText));
 
 process.exitCode = failed ? 1 : 0;
 console.log(failed ? 'draft E2E: FAILURES' : 'draft E2E: all checks passed');

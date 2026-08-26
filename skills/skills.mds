@@ -1,0 +1,29 @@
+document MdsAgentSkill
+
+metadata
+- name: string required
+- description: string required
+
+order strict
+
+additionalSections false
+
+# "*" as title required
+
+## "Resolve the CLI" as resolution required
+
+expect:
+  ## Resolve the CLI
+  Probe each candidate below with `mds help`; first match wins. If none
+  resolves, run the **mds-install** skill once, then continue here.
+  ```text
+  mds …                                 global install (pipx / npm -g)
+  .venv\Scripts\python.exe -m mds …     Python venv, Windows
+  .venv/bin/python -m mds …             Python venv, POSIX
+  npx --yes --package=mds-core mds …    ad-hoc, needs Node >= 18 only
+  node js/bin/mds.js …                  inside this repository checkout
+  ```
+
+embed text required
+
+## Workflow required

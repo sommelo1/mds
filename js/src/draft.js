@@ -19,9 +19,17 @@ import { flattenSections, parseDocument } from './mddoc.js';
 import { validateDocument } from './validate.js';
 
 const CARDS = ['required', 'optional', 'one-or-more', 'zero-or-more'];
-const FENCE_LANGS = new Set(['json']);
 const FIELD_MAX_LABEL = 48;
 const URLISH = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/** Human noun per fence language for expect stubs (section 21). */
+const EMBED_NOUNS = {
+  mermaid: 'diagram', plantuml: 'diagram', puml: 'diagram', svg: 'diagram',
+  abc: 'score', math: 'formula', latex: 'formula', tex: 'formula',
+  csv: 'table data', json: 'JSON document', geojson: 'map',
+  topojson: 'map', stl: 'mesh', markdown: 'document',
+};
+const embedNoun = (lang) => EMBED_NOUNS[lang] ?? 'content';
 
 /** Split document text into paragraphs the way the validator measures them. */
 function proseText(sec) {
@@ -56,6 +64,11 @@ function inferType(values) {
   return 'number';
 }
 
+/** Strip surrounding emphasis/backticks from a bullet label. */
+function cleanLabel(raw) {
+  return raw.replace(/^\s*[\*_`]{1,3}/, '').replace(/[\*_`]{1,3}\s*$/, '').trim();
+}
+
 /** Split top-level bullets into field candidates and plain list items. */
 function classifyBullets(items) {
   const fields = [];
@@ -63,7 +76,7 @@ function classifyBullets(items) {
   for (const b of items) {
     const idx = b.text.indexOf(':');
     const okShape = idx > 0 && idx <= FIELD_MAX_LABEL && !URLISH.test(b.text);
-    const label = okShape ? b.text.slice(0, idx).trim() : '';
+    const label = okShape ? cleanLabel(b.text.slice(0, idx)) : '';
     if (okShape && label !== '' && !label.includes(':') && !CARDS.includes(label.toLowerCase())) {
       fields.push({ label, value: b.text.slice(idx + 1).trim() });
     } else {
@@ -84,10 +97,21 @@ function pascal(parts) {
   return name === '' ? 'Document' : name;
 }
 
-/** Quote a heading label whenever its bare form could parse as grammar. */
+/**
+ * Quote a heading label whenever its bare form could parse as grammar:
+ * cardinality keywords, the `as` identifier keyword, content-statement
+ * keywords or colon/quote characters.
+ */
 function safeLabel(label) {
-  const risky = CARDS.some((c) => label.split(/\s+/).some((t) => t.toLowerCase() === c));
+  const reserved = new Set([...CARDS, 'as', 'table', 'list', 'prose', 'embed']);
+  const risky = label.split(/\s+/).some((t) => reserved.has(t.toLowerCase()))
+    || /[:"]/.test(label);
   return risky ? `"${label}"` : label;
+}
+
+/** Quote a title label unconditionally: titles may contain anything. */
+function safeTitle(label) {
+  return `"${label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 function tableSignature(t) {
@@ -110,19 +134,21 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
 
   out.push(`document ${pascal([base])}`);
   if (doc.title) {
+    // Exact title text, never a glob: a "*" title would claim every H1 in
+    // multi-chapter documents and starve all section declarations.
     out.push('');
-    out.push('# "*" as title required');
+    out.push(`# ${safeTitle(doc.title.text)} as title required`);
   }
 
-  // --- group sections (flattened, minus the title) by normalized label ------
-  // Declarations match instance sections anywhere in the tree, so drafting
-  // from the flattened view mirrors how the validator pairs them.
+  // --- group sections by heading level and normalized label ------------------
+  // Declarations match instances of the SAME heading level anywhere in the
+  // tree, so drafts emit the real marker level; grouping key includes it.
   const groups = new Map();
   const flat = flattenSections(doc.sections);
   for (const { sec } of flat) {
     if (doc.title && sec.level === 1 && sec.line === doc.title.line) continue;
-    const key = sec.label.toLowerCase();
-    if (!groups.has(key)) groups.set(key, { label: sec.label, occ: [] });
+    const key = `${sec.level}\u0000${sec.label.toLowerCase()}`;
+    if (!groups.has(key)) groups.set(key, { level: sec.level, label: sec.label, occ: [] });
     groups.get(key).occ.push(sec);
   }
 
@@ -130,22 +156,80 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
     const n = g.occ.length;
     const card = n === 1 ? 'required' : 'one-or-more';
     out.push('');
-    out.push(`## ${safeLabel(g.label)} ${card}`);
+    out.push(`${'#'.repeat(g.level)} ${safeLabel(g.label)} ${card}`);
 
-    // prose: required only when every occurrence actually carries paragraphs
-    const lens = g.occ.filter((s) => s.paras.length > 0).map((s) => charLen(proseText(s)));
+    // --- positional content order (C205) -------------------------------------
+    // C205 collapses all tables to one rank class and all embeds to another,
+    // so binding is expressible iff some subset of {prose, tables, embeds}
+    // appears in contiguous blocks across EVERY occurrence. Try subsets in
+    // a preference ladder (tables are the most structural binding); the
+    // first passing subset decides what this section declares. Sections
+    // ending with [] bind presence/fields/lists only — their block content
+    // stays tolerated under additionalFields.
+    const kindClasses = (s) => (s.blocks ?? []).map((b) => {
+      if (b.kind === 'para') return 'prose';
+      if (b.kind === 'fence') return 'embeds';
+      if (b.kind === 'table') return 'tables';
+      return null;
+    }).filter(Boolean);
+
+    const contiguousFor = (keep) => {
+      const pos = new Map();
+      for (const s of g.occ) {
+        pos.clear(); // per occurrence
+        let i = 0;
+        for (const k of kindClasses(s)) {
+          if (!keep.has(k)) continue;
+          if (!pos.has(k)) pos.set(k, []);
+          pos.get(k).push(i++);
+        }
+        if ([...pos.values()].some((ps) => ps[ps.length - 1] - ps[0] + 1 !== ps.length)) {
+          return false;
+        }
+      }
+      return true;
+    };
+    const LADDER = [
+      new Set(['prose', 'tables', 'embeds']),
+      new Set(['tables', 'embeds']),
+      new Set(['prose', 'tables']),
+      new Set(['prose', 'embeds']),
+      new Set(['tables']),
+      new Set(['embeds']),
+      new Set(),
+    ];
+    const keep = LADDER.find(contiguousFor) ?? new Set();
+    const b0 = g.occ[0].blocks ?? [];
+    const positions = new Map();
+    kindClasses(g.occ[0]).forEach((k, i) => {
+      if (!keep.has(k)) return;
+      if (!positions.has(k)) positions.set(k, []);
+      positions.get(k).push(i);
+    });
+    const rankOf = (key, tie) => (positions.get(key)?.[0] ?? Infinity) * 100 + tie;
+    const chunks = [];
+
+    // Sections the ladder leaves empty bind presence/fields/lists only.
+    const contentOpen = keep.size === 0;
+
+    // prose: required only when every occurrence actually carries paragraphs.
+    const lens = (keep.has('prose'))
+      ? g.occ.filter((s) => s.paras.length > 0).map((s) => charLen(proseText(s)))
+      : [];
     const allProse = g.occ.every((s) => s.paras.length > 0);
     if (lens.length > 0) {
       const pcard = allProse ? 'required' : 'optional';
       const minLen = Math.min(...lens);
-      out.push('');
-      out.push(minLen > 0 ? `prose ${pcard} minLength=${minLen}` : `prose ${pcard}`);
-      out.push('');
-      out.push('expect:');
-      out.push(`  TODO: describe what the ${g.label} section must convey.`);
-      out.push('');
-      out.push('validate:');
-      out.push('  semantic: optional');
+      chunks.push({ rank: rankOf('prose', 0), lines: [
+        '',
+        minLen > 0 ? `prose ${pcard} minLength=${minLen}` : `prose ${pcard}`,
+        '',
+        'expect:',
+        `  TODO: describe what the ${g.label} section must convey.`,
+        '',
+        'validate:',
+        '  semantic: optional',
+      ] });
     }
 
     // fields: grouped by label, typed over all observed values
@@ -180,28 +264,35 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
       );
     }
 
-    // tables grouped by column signature
+    // tables grouped by column signature (gated by the subset ladder)
     const sigs = new Map();
-    for (const s of g.occ) {
-      for (const t of s.tables) {
-        const sig = tableSignature(t);
-        if (!sigs.has(sig)) sigs.set(sig, []);
-        sigs.get(sig).push(t);
+    if (keep.has('tables')) {
+      for (const s of g.occ) {
+        for (const t of s.tables) {
+          const sig = tableSignature(t);
+          if (!sigs.has(sig)) sigs.set(sig, []);
+          sigs.get(sig).push(t);
+        }
       }
     }
     let tIdx = 0;
     for (const [sig, tabs] of sigs) {
       tIdx++;
       const tcard = tabs.length === n ? 'required' : 'optional';
-      const cols = sig.split('|');
-      const width = Math.max(...tabs.map((t) => t.columns.length));
+      // ragged sources can yield empty header names; such columns are
+      // undeclarable (the document header has no matchable text). Cells
+      // keep their ORIGINAL header index while names are filtered.
+      const colDefs = sig.split('|')
+        .map((name, idx) => ({ name: cleanLabel(name.trim()), idx }))
+        .filter((x) => x.name !== '');
+      if (colDefs.length === 0) continue;
       const types = [];
-      for (let c = 0; c < width; c++) {
+      for (const { idx } of colDefs) {
         const values = [];
         let sawEmpty = false;
         for (const t of tabs) {
           for (const row of t.rows) {
-            const cell = row.cells[c] ?? '';
+            const cell = row.cells[idx] ?? '';
             if (cell === '') sawEmpty = true;
             else values.push(cell);
           }
@@ -210,29 +301,44 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
         types.push({ type: inferType(values), nullable: sawEmpty || values.length === 0 });
       }
       const name = `${pascal([g.label])}${tIdx > 1 ? tIdx : ''}`;
-      out.push('');
-      out.push(`table ${name}${tcard === 'optional' ? ' optional' : ''}`);
-      cols.forEach((col, i) => {
-        const { type, nullable } = types[i] ?? { type: 'string', nullable: true };
-        out.push(`- ${col}: ${type}${nullable ? ' nullable' : ''}`);
-      });
+      chunks.push({ rank: rankOf('tables', tIdx), lines: [
+        '',
+        `table ${name}${tcard === 'optional' ? ' optional' : ''}`,
+        ...colDefs.map(({ name: col }, i) => {
+          const { type, nullable } = types[i] ?? { type: 'string', nullable: true };
+          return `- ${safeLabel(col)}: ${type}${nullable ? ' nullable' : ''}`;
+        }),
+      ] });
     }
 
-    // fenced embeds: only JSON fences are declared; other fence languages
-    // stay undeclared and remain legal under the default-open contract
-    const langs = new Map();
-    for (const s of g.occ) {
-      for (const f of s.fences) {
-        if (!FENCE_LANGS.has(f.lang)) continue;
-        if (!langs.has(f.lang)) langs.set(f.lang, 0);
-        langs.set(f.lang, langs.get(f.lang) + 1);
-      }
+    // fenced embeds: bound POSITIONALLY — the validator pairs fence[i] with
+    // the i-th embed declaration — so emit ONE declaration per observed
+    // fence slot of the first occurrence, in document order. Every slot
+    // carries an expect stub stating what it must show; a slot whose
+    // language differs across occurrences binds optional.
+    const f0 = keep.has('embeds') ? (g.occ[0].fences ?? []) : [];
+    for (let idx = 0; idx < f0.length; idx++) {
+      const lang = String(f0[idx]?.lang ?? '').toLowerCase();
+      if (lang === '') continue;
+      const sameEverywhere = g.occ.every((s) => {
+        const f = s.fences?.[idx];
+        return f != null && String(f.lang ?? '').toLowerCase() === lang;
+      });
+      chunks.push({ rank: rankOf('embeds', idx + 1), lines: [
+        '',
+        `embed ${lang}${sameEverywhere ? '' : ' optional'}`,
+        '',
+        'expect:',
+        `  TODO: describe what the ${embedNoun(lang)} must show.`,
+        '',
+        'validate:',
+        '  semantic: optional',
+      ] });
     }
-    for (const [lang, count] of langs) {
-      const ecard = count === n ? 'required' : 'optional';
-      out.push('');
-      out.push(`embed ${lang}${ecard === 'optional' ? ' optional' : ''}`);
-    }
+
+    // emit positional content in the order the document shows it
+    chunks.sort((a, b) => a.rank - b.rank);
+    for (const c of chunks) out.push(...c.lines);
   }
 
   const schemaText = `${out.join('\n')}\n`;

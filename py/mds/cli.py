@@ -45,12 +45,13 @@ def _fail(msg):
 
 # Skill templates shipped with the package and their project targets.
 SKILL_TARGETS = [
-    ("claude-SKILL.md", ".claude/skills/mds/SKILL.md"),
-    ("hermes-SKILL.md", ".hermes/skills/mds/SKILL.md"),
-    ("kilo-mds.md", ".kilo/command/mds.md"),
-    ("claude-SKILL-draft.md", ".claude/skills/mds-draft/SKILL.md"),
-    ("hermes-SKILL-draft.md", ".hermes/skills/mds-draft/SKILL.md"),
-    ("kilo-mds-draft.md", ".kilo/command/mds-draft.md"),
+    item
+    for skill in ("validate", "write", "draft", "install")
+    for item in (
+        (f"claude-SKILL-{skill}.md", f".claude/skills/mds-{skill}/SKILL.md"),
+        (f"hermes-SKILL-{skill}.md", f".hermes/skills/mds-{skill}/SKILL.md"),
+        (f"claude-SKILL-{skill}.md", f".kilo/skills/mds-{skill}/SKILL.md"),
+    )
 ]
 
 

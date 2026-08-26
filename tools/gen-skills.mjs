@@ -1,16 +1,27 @@
 #!/usr/bin/env node
 /**
- * Regenerate every derived agent-skill copy from the canonical sources in
- * `skills/` (single source of truth).
+ * Deploy every agent-skill document to its discovery and packaged targets.
  *
- * Derived artifacts (never edit by hand):
- * - `.claude/skills/<name>/SKILL.md`   — canonical verbatim
- * - `.hermes/skills/<name>/SKILL.md`   — canonical verbatim
- * - `.kilo/command/<name>.md`          — body + `$ARGUMENTS` target line
- * - `js/skills/*`, `py/mds/skills/*`   — packaged template copies
+ * Canonical sources (single source of truth — edit these, never the copies):
+ * - `skills/<name>.md`   complete, self-contained skill document:
+ *   frontmatter, title, the immutable "Resolve the CLI" section and the
+ *   per-skill "Workflow" section. The "Resolve the CLI" text must stay
+ *   byte-identical to the `expect:` block of `skills/skills.mds`; the test
+ *   suites enforce that, so keep the two in sync when editing either.
  *
- * Run after editing a canonical skill: `node tools/gen-skills.mjs`.
- * The script is deterministic and idempotent; commit the resulting diff.
+ * Generated artifacts (verbatim copies of the source — never edit by hand):
+ * - `.claude/skills/<name>/SKILL.md`
+ * - `.hermes/skills/<name>/SKILL.md`
+ * - `.kilo/skills/<name>/SKILL.md`
+ * - `js/skills/{claude,hermes}-SKILL-<short>.md`
+ * - `py/mds/skills/{claude,hermes}-SKILL-<short>.md`
+ *
+ * Deliberately NO `.kilo/command/*.md`: a command named like its skill
+ * makes Kilo Code list the entry twice (skill + command share one menu).
+ *
+ * Run after editing a source or the contract: `node tools/gen-skills.mjs`.
+ * Deterministic and idempotent; commit the resulting diff. Both test suites
+ * validate every artifact against `skills/skills.mds`.
  *
  * @module tools.gen-skills
  */
@@ -21,40 +32,22 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'skills');
 
-/** Split YAML frontmatter from a canonical skill file. */
-function parse(src) {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(src);
-  if (!m) throw new Error(`missing frontmatter in skill source: ${src}`);
-  return { frontmatter: `---\n${m[1]}\n---\n`, body: m[2].replace(/^\r?\n/, '') };
-}
+const sources = readdirSync(srcDir).filter((f) => f.endsWith('.md')).sort();
 
 const targets = [];
-for (const file of readdirSync(srcDir).sort()) {
-  if (!file.endsWith('.md')) continue;
+for (const file of sources) {
   const name = file.replace(/\.md$/, '');
-  const canonical = readFileSync(join(srcDir, file), 'utf8');
-  const { frontmatter, body } = parse(canonical);
-  const title = /^# (.+)$/m.exec(body)?.[1] ?? name;
-
-  const kilo = [
-    `# ${title}`,
-    '',
-    `Target: $ARGUMENTS.`,
-    '',
-    body.replace(/^# .+\r?\n/, '').trimStart(),
-  ].join('\n');
-
+  const short = name.replace(/^mds-/, '');
+  const content = readFileSync(join(srcDir, file), 'utf8');
   targets.push(
-    [join('.claude', 'skills', name, 'SKILL.md'), canonical],
-    [join('.hermes', 'skills', name, 'SKILL.md'), canonical],
-    [join('.kilo', 'command', `${name}.md`), `${kilo}\n`],
+    [join('.claude', 'skills', name, 'SKILL.md'), content],
+    [join('.hermes', 'skills', name, 'SKILL.md'), content],
+    [join('.kilo', 'skills', name, 'SKILL.md'), content],
     // packaged templates (flat names consumed by `mds skills install`)
-    [join('js', 'skills', `claude-SKILL${name === 'mds' ? '' : `-${name.replace('mds-', '')}`}.md`), canonical],
-    [join('js', 'skills', `hermes-SKILL${name === 'mds' ? '' : `-${name.replace('mds-', '')}`}.md`), canonical],
-    [join('js', 'skills', `kilo-${name}.md`), `${kilo}\n`],
-    [join('py', 'mds', 'skills', `claude-SKILL${name === 'mds' ? '' : `-${name.replace('mds-', '')}`}.md`), canonical],
-    [join('py', 'mds', 'skills', `hermes-SKILL${name === 'mds' ? '' : `-${name.replace('mds-', '')}`}.md`), canonical],
-    [join('py', 'mds', 'skills', `kilo-${name}.md`), `${kilo}\n`],
+    [join('js', 'skills', `claude-SKILL-${short}.md`), content],
+    [join('js', 'skills', `hermes-SKILL-${short}.md`), content],
+    [join('py', 'mds', 'skills', `claude-SKILL-${short}.md`), content],
+    [join('py', 'mds', 'skills', `hermes-SKILL-${short}.md`), content],
   );
 }
 
@@ -63,4 +56,4 @@ for (const [rel, content] of targets) {
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, content);
 }
-console.log(`gen-skills: wrote ${targets.length} files from skills/`);
+console.log(`gen-skills: wrote ${targets.length} files from skills/*.md`);

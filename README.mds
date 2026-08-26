@@ -1,0 +1,279 @@
+document Readme
+
+# "MDS — Markdown Document Schema" as title required
+
+## Why MDS? required
+
+embed text
+
+expect:
+  An ASCII/text tree diagram illustrating the two halves of an MDS
+  contract: the deterministic contract (structure, types, constraints)
+  and the semantic expectation (expect, readable by humans and LLMs,
+  optionally evaluated by extensions). Must not contain prose paragraphs.
+
+validate:
+  semantic: optional
+
+## Quick start required
+
+embed bash
+
+expect:
+  Shell commands showing how to run the CLI without installing anything
+  via npx (Node) and how to install and run it via pipx (Python). Must
+  invoke the `mds validate` command.
+
+validate:
+  semantic: optional
+
+embed mds
+
+expect:
+  A minimal example contract named "Report" declaring a required title,
+  a Summary section with prose and an `expect:` block, and a Metrics
+  table. Must be valid MDS contract syntax.
+
+validate:
+  semantic: optional
+
+embed text
+
+expect:
+  A sample CLI invocation and its plain-Markdown diagnostic output,
+  ending in a `summary:` line reporting error and warning counts.
+
+validate:
+  semantic: optional
+
+embed mds
+
+expect:
+  A contract snippet contrasting `optional` and `nullable`/`nullable(na)`
+  column declarations on a table, illustrating structural absence versus
+  data absence.
+
+validate:
+  semantic: optional
+
+### Open by default required
+
+embed mds
+
+expect:
+  A contract snippet showing that declaring a heading binds only that
+  heading, leaving its nested subtree unconstrained.
+
+validate:
+  semantic: optional
+
+embed mds
+
+expect:
+  A contract snippet showing the `additionalSections false` and
+  `additionalFields false` directives that make a contract strict about
+  undeclared headings or fields/columns.
+
+validate:
+  semantic: optional
+
+## CLI reference required
+
+table CliReference
+- Command: string
+- Purpose: string
+
+embed bash
+
+expect:
+  A shell walkthrough of the draft-fill-validate-scaffold roundtrip
+  workflow, invoking `mds draft`, `mds validate` and `mds scaffold` in
+  sequence with explanatory comments.
+
+validate:
+  semantic: optional
+
+## Agent skills required
+
+list string minItems=3
+
+embed bash
+
+expect:
+  Shell commands showing how to run `mds skills install`, both via an
+  installed CLI and via npx without installing.
+
+validate:
+  semantic: optional
+
+## "Use as a library" required
+
+prose required minLength=173
+
+expect:
+  State that everything the CLI does is available programmatically, for
+  embedding the library in tooling, CI checks, MCP servers, or LLM repair
+  loops.
+
+validate:
+  semantic: optional
+
+### 1 · Validate files required
+
+prose required minLength=131
+
+expect:
+  Explain that this entry point takes file paths, reading them from disk
+  and using the paths themselves as diagnostic labels, so labels never
+  drift from sources.
+
+validate:
+  semantic: optional
+
+embed python
+
+expect:
+  Python code importing `validate_files` from `mds` and calling it with
+  two file paths, printing the exit code and stream.
+
+validate:
+  semantic: optional
+
+embed js
+
+expect:
+  JavaScript code importing `validateFiles` from `mds-core` and calling
+  it with `docPath`/`schemaPath`, logging exitCode and stream.
+
+validate:
+  semantic: optional
+
+### 2 · Validate strings required
+
+prose required minLength=205
+
+expect:
+  Explain that this entry point takes in-memory text (templates, stdin,
+  LLM output) passed inline, with default filenames of case.md/case.mds
+  when none are supplied.
+
+validate:
+  semantic: optional
+
+embed python
+
+expect:
+  Python code defining a document and contract as inline strings and
+  calling `validate_document` from `mds`, printing exit code and stream.
+
+validate:
+  semantic: optional
+
+embed js
+
+expect:
+  JavaScript code defining a document and contract as inline template
+  strings and calling `validateDocument` from `mds-core`, logging
+  exitCode and stream.
+
+validate:
+  semantic: optional
+
+### 3 · Validate streams required
+
+table Doc3ValidateStreams
+- Field: string
+- Audience: string
+- Content: string
+
+table Doc3ValidateStreams2
+- Code: string
+- Meaning: string
+- What to do: string
+
+## Extensions — no core rebuilds required
+
+- Formats: string
+- Semantic validators: string
+- Discovery follows platform convention: string
+
+prose required minLength=884
+
+expect:
+  Explain that format and semantic-validation extensions drop in with
+  zero configuration: format extensions (e.g. embed svg/csv) bind by
+  id/alias, with built-in super-minimal sanity checks for common formats
+  and no claim of completeness; semantic validators consume `expect`
+  regions and can affect the verdict when required; discovery follows
+  npm/entry-point conventions per platform, and missing required
+  extensions fail loudly.
+
+validate:
+  semantic: optional
+
+## Documentation required
+
+list string minItems=5
+
+## Development required
+
+embed bash
+
+expect:
+  Shell commands to clone the repo and run both test suites: the
+  JavaScript conformance test via node and the Python pytest suite from
+  a virtualenv, for both Windows and POSIX.
+
+validate:
+  semantic: optional
+
+prose required minLength=263
+
+expect:
+  State that both implementations must stay byte-identical on all
+  fixtures, that fixtures are regenerated with `node tools/gen-fixtures.mjs`
+  after an intentional behavior change, and that agent skills are
+  regenerated from `skills/` with `node tools/gen-skills.mjs`.
+
+validate:
+  semantic: optional
+
+## Contributing required
+
+prose required minLength=419
+
+expect:
+  State that issues and PRs are welcome, and list the ground rules:
+  behavior changes must touch spec, JS, Python and fixtures together;
+  the diagnostic grammar is stable and tools depend on it; spec keywords
+  MUST/SHOULD/MAY follow RFC 2119.
+
+validate:
+  semantic: optional
+
+## Support & status required
+
+- Questions and bugs: string
+- Status: string
+
+prose required minLength=412
+
+expect:
+  State where to file questions and bugs (GitHub Issues), that the
+  project is in beta (0.x) against a draft spec with breaking changes
+  possible before 1.0, list implemented features (composition, when,
+  granular refs, typed metadata), point to the limitations table, and
+  credit the maintainer.
+
+validate:
+  semantic: optional
+
+## License required
+
+prose required minLength=14
+
+expect:
+  State the project is MIT licensed, linking to the LICENSE file.
+
+validate:
+  semantic: optional
