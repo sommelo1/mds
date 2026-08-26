@@ -141,13 +141,11 @@ Everything the CLI does is available programmatically — embed the library in
 your own tooling, CI checks or MCP servers; use the CLI in shell pipelines
 and LLM repair loops.
 
-```js
-// Node: npm i mds-core
-import { readFileSync } from 'node:fs';
-import { Readable } from 'node:stream';
-import { validateFiles, validateDocument, validateStreams } from 'mds-core';
+The examples below use this minimal pair — a document plus its contract,
+inline so you can see how they fit:
 
-// A minimal document/contract pair, inline so you can see how they fit:
+```js
+// JavaScript
 const docText = `# Shopping Note
 
 ## Body
@@ -161,29 +159,10 @@ const schemaText = `document Note
 ## Body required
 
 prose required minLength=1`;
-
-// 1) Files — paths are read AND used as diagnostic labels
-const r1 = await validateFiles({ docPath: 'doc.md', schemaPath: 'doc.mds' });
-
-// 2) Strings — content from templates, stdin or LLM output (labels optional)
-const r2 = await validateDocument({ docText, schemaText });
-
-// 3) Streams — transport hooks that deliver chunks: Node/Web streams or
-//    any iterable of string/utf8 chunks
-const r3 = await validateStreams({
-  docStream: Readable.from([docText]),
-  schemaStream: Readable.from([schemaText]),
-});
-
-console.log(r1.exitCode === r2.exitCode && r2.exitCode === r3.exitCode); // true
 ```
 
 ```python
-# pip install mds-core
-import io
-from mds import validate_files, validate_document, validate_streams
-
-# A minimal document/contract pair, inline so you can see how they fit:
+# Python
 doc_text = """# Shopping Note
 
 ## Body
@@ -197,24 +176,77 @@ schema_text = """document Note
 ## Body required
 
 prose required minLength=1"""
-
-# 1) Files - paths are read AND used as diagnostic labels
-r1 = validate_files("doc.md", "doc.mds")
-
-# 2) Strings - content from templates, stdin or LLM output (labels optional)
-r2 = validate_document(doc_text=doc_text, schema_text=schema_text)
-
-# 3) Streams - transport hooks that deliver chunks: file objects,
-#    StringIO/BytesIO, any iterable of str or utf8 chunks
-r3 = validate_streams(io.StringIO(doc_text), io.StringIO(schema_text))
-
-print(r1["exitCode"] == r2["exitCode"] == r3["exitCode"])  # True
 ```
 
-Results are plain data; the stream is exactly what the CLI prints, so tests
-can assert against fixture bytes. Labels follow the entry point: file-based
-calls use their paths, string- and stream-based calls default to
-`case.md`/`case.mds` unless you pass names yourself.
+### 1 · Validate files
+
+Content lives on disk? Pass paths — they are read **and** used as the
+diagnostic labels, so names can never drift from the sources.
+
+```js
+import { validateFiles } from 'mds-core';
+
+const { exitCode, stream } = await validateFiles({
+  docPath: 'doc.md',
+  schemaPath: 'doc.mds',
+});
+console.log(exitCode, stream);
+```
+
+```python
+from mds import validate_files
+
+r = validate_files("doc.md", "doc.mds")
+print(r["exitCode"], r["stream"])
+```
+
+### 2 · Validate strings
+
+Content already in memory (templates, stdin, LLM output)? Pass the texts
+directly. Streams have no filename here either — labels default to
+`case.md` / `case.mds` unless you pass `docName`/`schemaName`.
+
+```js
+import { validateDocument } from 'mds-core';
+
+const { exitCode, stream } = await validateDocument({ docText, schemaText });
+```
+
+```python
+from mds import validate_document
+
+r = validate_document(doc_text=doc_text, schema_text=schema_text)
+```
+
+### 3 · Validate streams
+
+Transport hooks that deliver chunks instead of complete buffers? Drain any
+source: Node/Web streams and sync/async iterables of string or utf8 chunks
+(JS), file objects, `StringIO`/`BytesIO` and chunk iterables (Python).
+Labels work exactly as in the string variant.
+
+```js
+import { Readable } from 'node:stream';
+import { validateStreams } from 'mds-core';
+
+const { exitCode } = await validateStreams({
+  docStream: Readable.from([docText]),      // any chunk iterable works,
+  schemaStream: Readable.from([schemaText]), // utf8 buffers included
+});
+```
+
+```python
+import io
+from mds import validate_streams
+
+r = validate_streams(io.StringIO(doc_text),   # files, BytesIO and other
+                     io.StringIO(schema_text))  # chunk sources work too
+```
+
+All three entry points return plain data (`{ exitCode, stream }`) and
+produce identical verdicts with byte-identical diagnostic streams for the
+same content — the `stream` field is exactly what the CLI prints, so tests
+can assert against fixture bytes.
 
 ## Extensions — no core rebuilds
 
