@@ -389,8 +389,8 @@ Format and semantic-validation extensions drop in with zero configuration:
 
 ## Documentation
 
-- [Specification (v0.13 Draft)](mds%20-%20Markdown%20Schema.md) — normative
-- [Conformance fixtures](conformance/) — 44 cases, source of truth for behavior
+- [Specification (v0.16.0 Beta)](mds%20-%20Markdown%20Schema.md) — normative
+- [Conformance fixtures](conformance/) — 49 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
 - [Agent guidelines](AGENTS.md) — how coding agents work in this repository
@@ -401,7 +401,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 git clone <your-fork-url> && cd mds
 
 # JavaScript suite (Node >= 18)
-node js/test/conformance.test.js        # 44/44
+node js/test/conformance.test.js        # 49/49
 
 # Python suite (inside .venv/)
 .venv/Scripts/python.exe -m pytest py/tests -q   # Windows
