@@ -1,6 +1,6 @@
 {
   "name": "mds-core",
-  "version": "0.17.2",
+  "version": "0.17.3",
   "description": "MDS — Markdown Document Schema: validate Markdown against .mds contracts from files, strings or streams — deterministic structure, types, constraints and LLM-readable semantic expectations with structured diagnostics.",
   "license": "MIT",
   "author": {

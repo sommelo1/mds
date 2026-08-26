@@ -389,7 +389,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 
 ## Documentation
 
-- [Specification (v0.17.2 Beta)](mds%20-%20Markdown%20Schema.md) — normative
+- [Specification (v0.17.3 Beta)](mds%20-%20Markdown%20Schema.md) — normative
 - [Conformance fixtures](conformance/) — 49 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
@@ -448,7 +448,7 @@ runtime from the same version line.
 ## Support & status
 
 - Questions and bugs: [GitHub Issues](../../issues)
-- Current release: **0.17.2**
+- Current release: **0.17.3**
 - Status: **beta (0.x)** against a draft specification — expect breaking
   changes before 1.0. Composition (`oneOf/allOf/anyOf/not`), conditional
   contracts (`when`), granular `$ref#Name` imports and typed metadata are
