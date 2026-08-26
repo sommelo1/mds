@@ -211,6 +211,8 @@ def draft_schema(doc_text, doc_name="doc.md"):
                 opt = " optional" if optional else ""
                 out.append(f"- {col}: {ftype}{opt}")
 
+        # fenced embeds: only JSON fences are declared; other fence languages
+        # stay undeclared and remain legal under the default-open contract
         langs = {}
         lang_order = []
         for s in occ:

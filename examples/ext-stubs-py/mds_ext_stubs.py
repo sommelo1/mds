@@ -1,5 +1,13 @@
-"""Stub pack for machine-usable embed types in GitHub/GitLab Flavored
+"""Stub pack demonstrating the zero-config format-extension interface
+(``mds_ext`` entry-point group) for embed types in GitHub/GitLab Flavored
 Markdown. Zero-config install: ``pip install ./examples/ext-stubs-py``.
+
+Note: Core already ships super-minimal sanity checks for math, mermaid,
+plantuml, abc, csv, geojson, topojson and stl (findings as MDS-C504,
+spec section 40.1). This pack intentionally overlaps on those ids:
+plugins override built-ins of the same id, so installing it swaps core's
+minimal checks for whatever is implemented here. ``toml`` and ``ini``
+are purely additive recognition-only stubs.
 
 Binding model (unchanged from core):
 - ``embed <id>``           binds by id/alias, recognition-only suffices
@@ -8,13 +16,8 @@ Binding model (unchanged from core):
 
 Upgrade path: replace a stub below with a real ``syntaxCheck`` and flip
 ``capabilities["syntax"]`` to ``True``. ``csv`` is the worked reference: a
-deterministic, dependency-free column-count validator (~20 lines).
-
-Covered embed types:
-gh+gl : math (tex)          -- mermaid lives in core already; this pack
-gl    : plantuml              never duplicates existing core ids
-gh    : geojson, topojson, csv, stl, abc (music sheets)
-common: toml, ini (structured config embeds)
+deterministic, dependency-free column-count validator (~20 lines); deeper
+validation than core's minimal checks is exactly what extensions are for.
 
 Mirrors ``examples/ext-stubs-js/index.js``.
 """

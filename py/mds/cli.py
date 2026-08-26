@@ -8,7 +8,7 @@ Commands: ``validate``, ``inspect``, ``scaffold``, ``extensions``,
 ``skills``, ``help``.
 Diagnostics go to stdout as the normative Markdown line stream; operational
 failures go to stderr. Exit codes follow section 59:
-0 valid / 1 invalid / 2 schema-config failure.
+0 valid · 1 invalid · 2 schema/config failure.
 
 Mirrors ``js/src/cli.js``.
 """
@@ -29,12 +29,12 @@ Usage:
   mds validate <doc.md> <schema.mds> [--max N]
   mds inspect <schema.mds>
   mds scaffold <schema.mds>
-  mds draft <doc.md>            # experimental
+  mds draft <doc.md>          # experimental
   mds extensions
   mds skills install [--force]
   mds help
 
-Exit codes: 0 valid / 1 invalid / 2 schema/config failure
+Exit codes: 0 valid · 1 invalid · 2 schema/config failure
 """
 
 

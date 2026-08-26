@@ -838,7 +838,7 @@ function runCore(doc, model, env) {
  * @param {string} [o.baseDir='.'] resolves imports & external contracts
  * @param {number|null} [o.maxDiagnostics=null] cap, announced with MDS-C900
  * @param {boolean} [o.enableOptionalLibs=false] opt-in ajv/jsonschema/yaml
- * @returns {Promise<{exitCode:number, stream:string}>}
+ * @returns {Promise<{exitCode:number, stream:string, diagnostics:Array<object>}>}
  */
 export async function validateDocument({
   docText,
@@ -907,7 +907,7 @@ export async function validateDocument({
  * @param {string} opts.schemaPath path of the `.mds` contract
  * @param {number|null} [opts.maxDiagnostics=null]
  * @param {boolean} [opts.enableOptionalLibs=false]
- * @returns {Promise<{exitCode:number, stream:string}>}
+ * @returns {Promise<{exitCode:number, stream:string, diagnostics:Array<object>}>}
  */
 export async function validateFiles({
   docPath,
@@ -965,7 +965,7 @@ export async function drainText(input) {
  * @param {string} [opts.baseDir='.'] resolves `$include` imports
  * @param {number|null} [opts.maxDiagnostics=null]
  * @param {boolean} [opts.enableOptionalLibs=false]
- * @returns {Promise<{exitCode:number, stream:string}>}
+ * @returns {Promise<{exitCode:number, stream:string, diagnostics:Array<object>}>}
  */
 export async function validateStreams({
   docStream,

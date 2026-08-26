@@ -115,22 +115,34 @@ function contentLines(content) {
 }
 
 /**
- * GitHub/GitLab-rendered embed formats get lightweight deterministic
- * syntax checks (no dependencies, no full parsers). Each check returns
- * at most one finding; findings surface as `MDS-C504`.
+ * GitHub/GitLab-rendered embed formats get super-minimal deterministic
+ * sanity checks (no dependencies, no full parsers, no completeness
+ * claim). A check reports a finding ONLY when content violates an
+ * unambiguous structural requirement of its format; anything ambiguous
+ * passes silently. Each check returns at most one finding; findings
+ * surface as `MDS-C504`.
  */
 const light = {
   math(content) {
     const { rows } = contentLines(content);
     if (rows.length === 0) return finding(1, 'empty math block');
-    const dollars = (String(content).match(/\$/g) ?? []).length;
+    const s = String(content);
+    let dollars = 0;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (c === '\\') i++; // escaped char (e.g. \$ or \\) is never a delimiter
+      else if (c === '$') dollars++;
+    }
     if (dollars % 2 !== 0) return finding(rows[0].ix, 'unbalanced math delimiters ($)');
     return null;
   },
   mermaid(content) {
-    const kinds = ['graph', 'flowchart', 'sequenceDiagram', 'classDiagram', 'stateDiagram',
-      'erDiagram', 'journey', 'gantt', 'pie', 'mindmap', 'timeline', 'quadrantChart',
-      'gitGraph', 'requirementDiagram', 'C4Context', 'sankey-beta', 'xychart-beta'];
+    // Non-exhaustive prefix whitelist; newer diagram types may be added.
+    const kinds = ['graph', 'flowchart', 'sequenceDiagram', 'classDiagram',
+      'stateDiagram', 'erDiagram', 'journey', 'gantt', 'pie', 'mindmap',
+      'timeline', 'quadrantChart', 'gitGraph', 'requirementDiagram', 'C4',
+      'sankey-beta', 'xychart-beta', 'block-beta', 'packet-beta', 'radar-beta',
+      'kanban-beta', 'architecture-beta'];
     const { rows } = contentLines(content);
     if (rows.length === 0) return finding(1, 'empty mermaid block');
     const first = rows[0].text.trim();
@@ -141,10 +153,10 @@ const light = {
   },
   plantuml(content) {
     const { rows } = contentLines(content);
-    if (rows.length === 0 || rows[0].text.trim() !== '@startuml') {
+    if (rows.length === 0 || !/^@startuml\b/.test(rows[0].text.trim())) {
       return finding(rows[0]?.ix ?? 1, 'missing @startuml');
     }
-    if (rows[rows.length - 1].text.trim() !== '@enduml') {
+    if (!/^@enduml\b/.test(rows[rows.length - 1].text.trim())) {
       return finding(rows[rows.length - 1].ix, 'missing @enduml');
     }
     return null;
@@ -158,12 +170,20 @@ const light = {
   },
   csv(content) {
     const { raw } = contentLines(content);
-    const rows = raw.filter((l) => l.trim() !== '');
+    const rows = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i].trim() !== '') rows.push({ text: raw[i], line: i + 1 });
+    }
     if (rows.length === 0) return finding(1, 'empty csv block');
-    const headerCols = rows[0].split(',').length;
-    for (let i = 1; i < rows.length; i++) {
-      const n = rows[i].split(',').length;
-      if (n !== headerCols) return finding(i + 1, `row ${i + 1} has ${n} fields, expected ${headerCols}`);
+    // Quoting makes comma counts unreliable; stay silent instead of
+    // risking false positives.
+    if (rows.some((r) => r.text.includes('"'))) return null;
+    const headerCols = rows[0].text.split(',').length;
+    for (let k = 1; k < rows.length; k++) {
+      const n = rows[k].text.split(',').length;
+      if (n !== headerCols) {
+        return finding(rows[k].line, `row ${rows[k].line} has ${n} fields, expected ${headerCols}`);
+      }
     }
     return null;
   },
@@ -208,8 +228,6 @@ export function builtinFormats(enableOptionalLibs = false) {
       return rel === 0 ? null : finding(rel, 'invalid JSON syntax');
     },
   };
-  // Lightweight validators for formats GitHub and GitLab render natively:
-  // deterministic, dependency-free checks; findings surface as MDS-C504.
   const light504 = (id, aliases, check) => ({
     id,
     aliases,

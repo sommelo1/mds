@@ -67,7 +67,9 @@ Composition (`oneOf/allOf/anyOf/not`, MDS-C208), conditional contracts
 (`when`), granular `$ref "path#Name"` resolution and typed metadata entries
 (`metadata` block, MDS-C602/C603) ARE implemented; their normative behavior
 is defined by the fixtures under `conformance/` — change fixtures first,
-then both implementations in lockstep. Built-in lightweight embed validators
-(math, mermaid, plantuml, abc, csv, geojson, topojson, stl; findings as
-MDS-C504) are specified in spec section 40.1 and MUST stay byte-identical
-across runtimes. See README limitations table before proposing changes.
+then both implementations in lockstep. Built-in super-minimal embed sanity
+checks (math, mermaid, plantuml, abc, csv, geojson, topojson, stl;
+findings as MDS-C504) are specified in spec section 40.1 and MUST stay
+byte-identical across runtimes. They are deliberately incomplete: checks
+flag only unambiguous structural breakage and stay silent on anything
+ambiguous. Deepening them belongs in format extensions, not in Core.

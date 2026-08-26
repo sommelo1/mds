@@ -159,19 +159,39 @@ def builtin_formats(enable_optional_libs=False):
                 if text.strip() != ""]
         return raw, rows
 
-    _MERMAID_KINDS = ("graph", "flowchart", "sequenceDiagram", "classDiagram",
-                      "stateDiagram", "erDiagram", "journey", "gantt", "pie",
-                      "mindmap", "timeline", "quadrantChart", "gitGraph",
-                      "requirementDiagram", "C4Context", "sankey-beta",
-                      "xychart-beta")
+    # Super-minimal deterministic sanity checks for the formats GitHub and
+    # GitLab render natively: no full parsers, no completeness claim. A
+    # check reports a finding ONLY when content violates an unambiguous
+    # structural requirement of its format; anything ambiguous passes
+    # silently. Findings surface as MDS-C504.
 
     def _math_check(content):
         _, rows = _content_lines(content)
         if not rows:
             return _finding(1, "empty math block")
-        if str(content).count("$") % 2 != 0:
+        s = str(content)
+        dollars = 0
+        i = 0
+        while i < len(s):
+            c = s[i]
+            if c == "\\":  # escaped char (e.g. \$ or \\) is never a delimiter
+                i += 2
+                continue
+            if c == "$":
+                dollars += 1
+            i += 1
+        if dollars % 2 != 0:
             return _finding(rows[0]["ix"], "unbalanced math delimiters ($)")
         return None
+
+    # Non-exhaustive prefix whitelist; newer diagram types may be added.
+    _MERMAID_KINDS = ("graph", "flowchart", "sequenceDiagram", "classDiagram",
+                      "stateDiagram", "erDiagram", "journey", "gantt", "pie",
+                      "mindmap", "timeline", "quadrantChart", "gitGraph",
+                      "requirementDiagram", "C4",
+                      "sankey-beta", "xychart-beta", "block-beta",
+                      "packet-beta", "radar-beta", "kanban-beta",
+                      "architecture-beta")
 
     def _mermaid_check(content):
         _, rows = _content_lines(content)
@@ -184,9 +204,9 @@ def builtin_formats(enable_optional_libs=False):
 
     def _plantuml_check(content):
         _, rows = _content_lines(content)
-        if not rows or rows[0]["text"].strip() != "@startuml":
+        if not rows or not re.match(r"@startuml\b", rows[0]["text"].strip()):
             return _finding(rows[0]["ix"] if rows else 1, "missing @startuml")
-        if rows[-1]["text"].strip() != "@enduml":
+        if not re.match(r"@enduml\b", rows[-1]["text"].strip()):
             return _finding(rows[-1]["ix"], "missing @enduml")
         return None
 
@@ -199,14 +219,21 @@ def builtin_formats(enable_optional_libs=False):
 
     def _csv_check(content):
         raw, _rows = _content_lines(content)
-        rows = [line for line in raw if line.strip() != ""]
+        rows = [{"text": text, "line": ix + 1} for ix, text in enumerate(raw)
+                if text.strip() != ""]
         if not rows:
             return _finding(1, "empty csv block")
-        header_cols = len(rows[0].split(","))
-        for i in range(1, len(rows)):
-            n = len(rows[i].split(","))
+        # Quoting makes comma counts unreliable; stay silent instead of
+        # risking false positives.
+        if any('"' in r["text"] for r in rows):
+            return None
+        header_cols = len(rows[0]["text"].split(","))
+        for r in rows[1:]:
+            n = len(r["text"].split(","))
             if n != header_cols:
-                return _finding(i + 1, f"row {i + 1} has {n} fields, expected {header_cols}")
+                return _finding(
+                    r["line"],
+                    f"row {r['line']} has {n} fields, expected {header_cols}")
         return None
 
     def _stl_check(content):
@@ -227,8 +254,6 @@ def builtin_formats(enable_optional_libs=False):
             return None
         return check
 
-    # Lightweight validators for formats GitHub and GitLab render natively:
-    # deterministic, dependency-free checks; findings surface as MDS-C504.
     def light504(fmt_id, aliases, check):
         return {"id": fmt_id, "aliases": aliases, "capabilities": {"syntax": True},
                 "findingCode": "MDS-C504", "syntaxCheck": check}

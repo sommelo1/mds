@@ -214,7 +214,8 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
       });
     }
 
-    // fenced embeds: only formats with core syntax support are declared
+    // fenced embeds: only JSON fences are declared; other fence languages
+    // stay undeclared and remain legal under the default-open contract
     const langs = new Map();
     for (const s of g.occ) {
       for (const f of s.fences) {

@@ -1,0 +1,4 @@
+invalid
+    - MDS-C504 error /Table/embed case.md:8:1 row 3 has 1 fields, expected 2 (via csv)
+
+summary: 1 errors, 0 warnings

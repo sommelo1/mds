@@ -72,11 +72,14 @@ One finding per line, rendered as a Markdown list item:
 | MDS-C204 | too many occurrences | remove duplicate section/table |
 | MDS-C206 | missing required field | add `- Label: value` |
 | MDS-C207 | unexpected field (closed contract) | remove or rename field |
+| MDS-C208 | composition violated (oneOf/allOf/anyOf/not) | satisfy the declared field-set combination |
 | MDS-C301 | value fails type check | see encodings below |
 | MDS-C302 | constraint violated (min/pattern/…) | adjust value |
 | MDS-C303/C304 | enum/const/union mismatch | pick an allowed value |
 | MDS-C305 | collection rule (items/unique) | dedupe or resize |
 | MDS-C501/C502/C503 | embed missing/unexpected/wrong format | fix fenced block |
+| MDS-C504 | embedded content failed a super-minimal format sanity check | fix the fenced block; checks flag only unambiguous breakage |
+| MDS-C601/C602/C603 | metadata entry malformed / type violation / closed contract | fix the front-matter line |
 | MDS-E001 | embedded JSON syntax error | fix the JSON inside the fence |
 | MDS-E410 | validator extension unavailable | report; needs a plugin, not edits |
 
@@ -98,7 +101,9 @@ One finding per line, rendered as a Markdown list item:
   order inside the table is free; an empty cell means null.
 - Embedded blocks: the fence info string must match the declared format
   (`json`, `mermaid`, …); JSON must be strict (no comments, no trailing
-  commas).
+  commas). Built-in format checks are super-minimal sanity checks
+  (`MDS-C504`): they flag only unambiguous structural breakage, stay
+  silent on anything ambiguous, and make no claim of completeness.
 
 ## Starting from an existing document
 

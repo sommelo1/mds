@@ -7,7 +7,7 @@ name = "mds-core"
 version = "0.15.2"
 description = "MDS - Markdown Document Schema: validate Markdown against .mds contracts from files, strings or streams - deterministic structure, types and constraints plus LLM-readable expectations and structured diagnostics."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "Lorenz Sommer", email = "59441867+sommelo1@users.noreply.github.com" },
 ]
@@ -17,12 +17,12 @@ keywords = ["markdown", "schema", "validation", "llm", "ai", "document", "contra
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Text Processing :: Markup :: Markdown",
 ]
@@ -36,7 +36,7 @@ Issues = "https://github.com/sommelo1/mds/issues"
 mds = "mds.cli:console_main"
 
 [tool.setuptools]
-packages = ["mds"]
+packages = ["mds", "mds.skills"]
 
 [tool.setuptools.package-data]
 mds = ["skills/*.md"]

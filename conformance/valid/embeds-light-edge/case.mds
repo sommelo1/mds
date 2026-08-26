@@ -1,0 +1,39 @@
+document Edge
+
+# "*" as title required
+
+## Chart required
+
+embed mermaid required
+
+## Beta required
+
+embed mermaid required
+
+## Named required
+
+embed plantuml required
+
+## Formula required
+
+embed math required
+
+## Cost required
+
+embed math required
+
+## Table required
+
+embed csv required
+
+## Shape required
+
+embed geojson required
+
+## Mesh required
+
+embed stl required
+
+## Tune required
+
+embed abc required

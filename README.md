@@ -306,10 +306,12 @@ the same run can be pasted into an LLM repair prompt as `stream`.
 Format and semantic-validation extensions drop in with zero configuration:
 
 - **Formats**: `embed svg`, `embed csv`, … bind by id/alias. Built-ins ship
-  for `json` (full syntax check) plus **lightweight validators** for the
-  formats GitHub/GitLab render natively — `math`, `mermaid`, `plantuml`,
-  `abc`, `csv`, `geojson`, `topojson`, `stl` (findings surface as
-  `MDS-C504`); `svg` and friends stay recognition-only.
+  for `json` (full syntax check) plus **super-minimal sanity checks** for
+  the formats GitHub/GitLab render natively — `math`, `mermaid`,
+  `plantuml`, `abc`, `csv`, `geojson`, `topojson`, `stl`. They flag only
+  unambiguous structural breakage, stay silent on anything ambiguous,
+  and make no claim of completeness (findings surface as `MDS-C504`);
+  `svg` and friends stay recognition-only.
   [`examples/ext-stubs-*`](examples/) shows the extension interface for
   deeper checks (`math`, `plantuml`, `geojson`, `topojson`, `stl`, `abc`, …).
 - **Semantic validators**: consume `expect` regions and may affect the
@@ -323,7 +325,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 ## Documentation
 
 - [Specification (v0.13 Draft)](mds%20-%20Markdown%20Schema.md) — normative
-- [Conformance fixtures](conformance/) — 33 cases, source of truth for behavior
+- [Conformance fixtures](conformance/) — 44 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
 - [Agent guidelines](AGENTS.md) — how coding agents work in this repository
@@ -334,7 +336,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 git clone <your-fork-url> && cd mds
 
 # JavaScript suite (Node >= 18)
-node js/test/conformance.test.js        # 33/33
+node js/test/conformance.test.js        # 44/44
 
 # Python suite (inside .venv/)
 .venv/Scripts/python.exe -m pytest py/tests -q   # Windows

@@ -1510,19 +1510,21 @@ embed json required
 
 `validation: required` demands that a compatible format extension MUST be available; otherwise validation MUST fail with `MDS-E410`.
 
-### 40.1 Built-in Lightweight Validators
+### 40.1 Built-in Super-Minimal Sanity Checks
 
-MDS Core bundles deterministic, dependency-free syntax checks for the formats GitHub and GitLab render natively. Findings surface as `MDS-C504`. These checks are intentionally shallow recognition heuristics, not full parsers:
+MDS Core bundles deterministic, dependency-free sanity checks for the formats GitHub and GitLab render natively. Findings surface as `MDS-C504`. These checks are explicitly **super-minimal**: they make no claim of completeness and are not parsers. A check reports a finding ONLY when the content violates an unambiguous structural requirement of its format; whenever a judgment would be ambiguous, the check stays silent:
 
 ```text
-math (latex, tex)   non-empty; balanced `$` delimiters
-mermaid             first line names a known diagram type
-plantuml (puml)     starts with @startuml, ends with @enduml
+math (latex, tex)   non-empty; unescaped `$` delimiters balanced (`\$` never counts)
+mermaid             first line starts with a known diagram-type keyword
+                    (non-exhaustive prefix list; newer types may be reported)
+plantuml (puml)     first line starts with @startuml, last with @enduml
 abc                 first line is an `X:` index field
-csv                 every row has the header's column count
-geojson             strict JSON with a GeoJSON "type"
-topojson            strict JSON with "type": "Topology"
-stl                 starts with `solid`, ends with `endsolid`
+csv                 non-empty; quote-free rows must match the header's comma count;
+                    any quoting disables the check entirely
+geojson             strict JSON containing a GeoJSON "type" keyword
+topojson            strict JSON containing "type": "Topology"
+stl                 first line starts with `solid`, last with `endsolid`
 svg                 recognition-only (no syntax check)
 ```
 
@@ -2366,8 +2368,7 @@ The conformance suite is normative for implementations claiming conformance. It 
 ```text
 conformance/
 ├── valid/
-├── invalid/
-├── semantic/
+├── schema/
 └── diagnostics/
     ├── MDS-C101/
     ├── MDS-C102/
@@ -2375,7 +2376,7 @@ conformance/
     └── ...
 ```
 
-`valid/` and `invalid/` assert the verdict. `semantic/` asserts model equivalence. `diagnostics/` contains one directory per normative Core diagnostic code; every case inside a code directory asserts the exact set of expected codes, typically exactly one.
+`valid/` asserts an accepted document. `schema/` contains broken-contract cases: their `expected.txt` starts with the verdict `error` (exit code 2) because the `.mds` itself could not be processed. `invalid/` (rejected documents without a single dominant code) and `semantic/` (model equivalence per Annex C) are reserved categories before 1.0. `diagnostics/` contains one directory per normative Core diagnostic code; every case inside a code directory asserts the exact set of expected codes, typically exactly one.
 
 ## Fixtures
 
@@ -2630,4 +2631,8 @@ A run succeeds only if zero `error` diagnostics were produced.
 
 ## Mapping to Conformance Fixtures
 
-Every registry code maps one-to-one to a fixture directory in `conformance/diagnostics/<code>/`. The coverage requirement of Annex B therefore becomes mechanically checkable: every directory listed here MUST exist with at least one case.
+Registry codes map to fixture directories named `<code>` under
+`conformance/diagnostics/`. A code MAY have several case directories;
+variants append a descriptive suffix (for example `MDS-C504-csv`,
+`MDS-E410-semantic`). Before 1.0 every registry code MUST have at least
+one such directory with at least one case.
