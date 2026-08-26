@@ -845,3 +845,27 @@ def validate_document(*, doc_text, doc_name="case.md", schema_text,
     errors = sum(1 for d in diags if d.severity == SEVERITY_ERROR)
     return {"exitCode": 1 if errors > 0 else 0,
             "stream": render_stream(diags, max_diagnostics)}
+
+
+def validate_files(doc_path, schema_path, *, max_diagnostics=None,
+                   enable_optional_libs=False):
+    """Validate a document/schema pair directly from file paths.
+
+    Convenience wrapper around :func:`validate_document`: reads both files
+    and uses the paths themselves as diagnostic labels, so the names can
+    never drift from the sources. ``$include`` imports resolve relative to
+    the schema's directory (same as the CLI).
+
+    Returns ``{"exitCode": int, "stream": str}``.
+    """
+    with open(doc_path, "r", encoding="utf-8") as fh:
+        doc_text = fh.read()
+    with open(schema_path, "r", encoding="utf-8") as fh:
+        schema_text = fh.read()
+    base_dir = os.path.dirname(os.path.abspath(str(schema_path))) or "."
+    return validate_document(
+        doc_text=doc_text, doc_name=str(doc_path),
+        schema_text=schema_text, schema_name=str(schema_path),
+        base_dir=base_dir, max_diagnostics=max_diagnostics,
+        enable_optional_libs=enable_optional_libs,
+    )

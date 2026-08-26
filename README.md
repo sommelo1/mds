@@ -143,40 +143,28 @@ and LLM repair loops.
 
 ```js
 // Node: npm i mds-core
-import { readFileSync } from 'node:fs';
-import { validateDocument } from 'mds-core';
+import { validateFiles } from 'mds-core';
 
-const doc = readFileSync('doc.md', 'utf8');      // file -> string
-const schema = readFileSync('doc.mds', 'utf8');
-
-const { exitCode, stream } = await validateDocument({
-  docText: doc,
-  schemaText: schema,
-  docName: 'doc.md',        // label in diagnostics (defaults fine)
-  schemaName: 'doc.mds',
-});
+const { exitCode, stream } = await validateFiles({
+  docPath: 'doc.md',
+  schemaPath: 'doc.mds',
+});                                   // paths are read AND used as labels
 console.log(exitCode, stream);
 ```
 
 ```python
 # pip install mds-core
-from mds import validate_document
+from mds import validate_files
 
-with open("doc.md", encoding="utf-8") as fh:     # file -> string
-    doc = fh.read()
-with open("doc.mds", encoding="utf-8") as fh:
-    schema = fh.read()
-
-r = validate_document(doc_text=doc, schema_text=schema,
-                      doc_name="doc.md",         # label in diagnostics (default ok)
-                      schema_name="doc.mds")
+r = validate_files("doc.md", "doc.mds")   # paths are read AND become labels
 print(r["exitCode"], r["stream"])
 ```
 
 Results are plain data; the stream is exactly what the CLI prints, so tests
-can assert against fixture bytes. The two `*_text` parameters carry the
-content, the two `*_name` parameters only label the diagnostic paths — pass
-real paths for clickable editor/CI output or drop them entirely.
+can assert against fixture bytes. When your content does not come from files
+(templates, stdin, LLM output), use the string-based core instead:
+`validate_document(doc_text=…, schema_text=…)` — names are optional there
+and only label the diagnostic paths.
 
 ## Extensions — no core rebuilds
 

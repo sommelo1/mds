@@ -795,3 +795,35 @@ export async function validateDocument({
   const errors = diags.filter((d) => d.severity === SEVERITY.ERROR).length;
   return { exitCode: errors > 0 ? 1 : 0, stream: renderStream(diags, maxDiagnostics) };
 }
+
+/**
+ * Validate a document/schema pair directly from file paths.
+ *
+ * Convenience wrapper around {@link validateDocument}: reads both files and
+ * uses the paths themselves as diagnostic labels, so the names can never
+ * drift from the sources. `$include` imports resolve relative to the
+ * schema's directory (same as the CLI).
+ *
+ * @param {object} opts
+ * @param {string} opts.docPath path of the Markdown document
+ * @param {string} opts.schemaPath path of the `.mds` contract
+ * @param {number|null} [opts.maxDiagnostics=null]
+ * @param {boolean} [opts.enableOptionalLibs=false]
+ * @returns {Promise<{exitCode:number, stream:string}>}
+ */
+export async function validateFiles({
+  docPath,
+  schemaPath,
+  maxDiagnostics = null,
+  enableOptionalLibs = false,
+}) {
+  return validateDocument({
+    docText: readFileSync(docPath, 'utf8'),
+    docName: docPath,
+    schemaText: readFileSync(schemaPath, 'utf8'),
+    schemaName: schemaPath,
+    baseDir: resolve(schemaPath, '..'),
+    maxDiagnostics,
+    enableOptionalLibs,
+  });
+}
