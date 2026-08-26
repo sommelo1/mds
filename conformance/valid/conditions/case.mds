@@ -1,0 +1,14 @@
+document Trades
+
+# "*" as title required
+
+## Leg one-or-more
+
+- Type: string required
+
+when Type == "Option"
+  - Strike: number required
+  - Expiry: date required
+
+when Type == "Future"
+  require Type

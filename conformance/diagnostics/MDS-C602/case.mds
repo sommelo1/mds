@@ -1,0 +1,10 @@
+document Note
+
+metadata
+- id: date required
+
+# "*" as title required
+
+## Body required
+
+prose required minLength=1

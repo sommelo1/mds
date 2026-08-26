@@ -1,0 +1,4 @@
+invalid
+- MDS-C602 error /metadata/id case.md:2:1 contract case.mds:4 value "not-a-date" does not match type date
+
+summary: 1 errors, 0 warnings

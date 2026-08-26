@@ -1,0 +1,35 @@
+document ReleaseNotes
+
+# "*" as title required
+
+## Diagram required
+
+embed mermaid required
+
+## Uml required
+
+embed puml required
+
+## Formula required
+
+embed math required
+
+## Tune required
+
+embed abc required
+
+## Table required
+
+embed csv required
+
+## Shapes required
+
+embed geojson required
+
+## Topo required
+
+embed topojson required
+
+## Mesh required
+
+embed stl required

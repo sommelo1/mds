@@ -1,0 +1,4 @@
+invalid
+    - MDS-C504 error /Uml/embed case.md:6:1 missing @startuml (via plantuml)
+
+summary: 1 errors, 0 warnings

@@ -178,8 +178,10 @@ def parse_schema(text, file):
     p = _P(text, file)
     M = p.model
     head_stack = []
-    member_target = None   # 'define'|'embed'|'requires'|None
+    member_target = None   # 'define'|'embed'|'requires'|'group'|'when'|'metadata'|None
     pending_define = None
+    pending_group = None
+    pending_when = None
     requires_ctx = None    # 'formats'|'schemas'|None
     last_head = None
     last_table = None
@@ -238,6 +240,54 @@ def parse_schema(text, file):
             finalize_pend(pend)
             pend = None
 
+        # document-level metadata declarations: `metadata` followed by
+        # `- key: type card` lines at any indent (section 15, typed entries)
+        if member_target == "metadata":
+            mm = re.match(r"^-\s+(.+)$", t)
+            if mm:
+                fld = _parse_field_body(mm.group(1), p, i + 1)
+                if fld is not None and _resolve_field_types(fld, M["definitions"], p, i + 1):
+                    fld["line"] = i + 1
+                    fld["labelNorm"] = fld["label"] if fld["glob"] \
+                        else re.sub(r"\s+", " ", fld["label"]).strip()
+                    M.setdefault("metadataDecls", []).append(fld)
+                continue
+            member_target = None  # any other statement closes the metadata block
+
+        # a column-0 statement ends composition/conditional member collection
+        if (member_target in ("group", "when")) and lvl == 0:
+            pending_group = None
+            pending_when = None
+            member_target = None
+
+        # composition groups and conditional contracts: members are indented
+        # field declarations (`require X` inside when)
+        if member_target in ("group", "when") and lvl >= 1:
+            gm = re.match(r"^-\s+(.+)$", t)
+            rq = re.match(r"^require\s+(\S+)$", t) if member_target == "when" else None
+            if rq is not None:
+                pending_when["requireNames"].append(rq.group(1))
+                continue
+            if gm:
+                fld = _parse_field_body(gm.group(1), p, i + 1)
+                if fld is None:
+                    continue
+                fld["line"] = i + 1
+                fld["labelNorm"] = fld["label"] if fld["glob"] \
+                    else re.sub(r"\s+", " ", fld["label"]).strip()
+                if not _resolve_field_types(fld, M["definitions"], p, i + 1):
+                    continue
+                if member_target == "group":
+                    fld["groupOnly"] = True
+                    pending_group["members"].append(fld)
+                else:
+                    pending_when["fields"].append(fld)
+                continue
+            # non-member line closes the block
+            pending_group = None
+            pending_when = None
+            member_target = None
+
         # Semantic expectation / validation binding (v0.13 section 21):
         # free-form text (expect) or key-value pairs (validate) captured
         # verbatim from deeper-indented following lines. Core exposes them
@@ -268,6 +318,8 @@ def parse_schema(text, file):
             last_table = None
             last_embed = None
             field_stack = []
+            pending_group = None
+            pending_when = None
 
             kw = t.split()[0]
 
@@ -286,6 +338,7 @@ def parse_schema(text, file):
                     "additionalSections": None, "additionalFields": None,
                     "prose": None, "list": None, "tables": [], "embeds": [], "fields": [],
                     "contentDecls": [], "children": [],
+                    "groups": [], "conditions": [],
                 }
                 h["flagLines"] = {"additionalSections": None, "additionalFields": None}
                 while head_stack and head_stack[-1]["level"] >= level:
@@ -330,6 +383,10 @@ def parse_schema(text, file):
                     continue
                 M["imports"].append({"path": m.group(1), "line": i + 1, "kw": kw})
                 continue
+            if kw == "metadata":
+                member_target = "metadata"
+                M.setdefault("metadataDecls", [])
+                continue
             if kw in ("additionalSections", "additionalFields"):
                 parts = t.split()
                 v = parts[1] if len(parts) > 1 else ""
@@ -345,8 +402,29 @@ def parse_schema(text, file):
                 requires_ctx = None
                 continue
             if kw in ("when", "oneOf", "allOf", "anyOf", "not"):
-                p.err(CODES["SCHEMA_UNKNOWN_STATEMENT"], i + 1,
-                      f'unsupported statement "{kw}"')
+                if last_head is None:
+                    p.err(CODES["SCHEMA_UNKNOWN_STATEMENT"], i + 1,
+                          f'unsupported statement "{kw}"')
+                    continue
+                if kw == "when":
+                    mw = re.match(r"^when\s+(\S+)\s*(==|!=)\s*(.+)$", t)
+                    if mw is None:
+                        p.err(CODES["SCHEMA_SYNTAX"], i + 1,
+                              'invalid schema syntax: when expects <Field> == <value>')
+                        continue
+                    cond = {"field": mw.group(1), "op": mw.group(2),
+                            "value": re.sub(r'^"(.*)"$', r"\1", mw.group(3).strip()),
+                            "fields": [], "requireNames": [], "line": i + 1}
+                    last_head["conditions"].append(cond)
+                    pending_when = cond
+                    pending_group = None
+                    member_target = "when"
+                    continue
+                g = {"kind": kw, "members": [], "line": i + 1}
+                last_head["groups"].append(g)
+                pending_group = g
+                pending_when = None
+                member_target = "group"
                 continue
             p.err(CODES["SCHEMA_UNKNOWN_STATEMENT"], i + 1,
                   f'unsupported statement "{kw}"')

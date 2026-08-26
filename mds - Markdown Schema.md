@@ -1510,6 +1510,24 @@ embed json required
 
 `validation: required` demands that a compatible format extension MUST be available; otherwise validation MUST fail with `MDS-E410`.
 
+### 40.1 Built-in Lightweight Validators
+
+MDS Core bundles deterministic, dependency-free syntax checks for the formats GitHub and GitLab render natively. Findings surface as `MDS-C504`. These checks are intentionally shallow recognition heuristics, not full parsers:
+
+```text
+math (latex, tex)   non-empty; balanced `$` delimiters
+mermaid             first line names a known diagram type
+plantuml (puml)     starts with @startuml, ends with @enduml
+abc                 first line is an `X:` index field
+csv                 every row has the header's column count
+geojson             strict JSON with a GeoJSON "type"
+topojson            strict JSON with "type": "Topology"
+stl                 starts with `solid`, ends with `endsolid`
+svg                 recognition-only (no syntax check)
+```
+
+Implementations MUST keep these checks byte-identical across runtimes; anything deeper remains the domain of format extensions.
+
 ---
 
 # 41. Embed With External Schema
@@ -2562,6 +2580,7 @@ A run succeeds only if zero `error` diagnostics were produced.
 | MDS-C205 | content items out of declared order            |
 | MDS-C206 | missing required field                         |
 | MDS-C207 | unexpected field under closed contract         |
+| MDS-C208 | composition rule violated (exactly-one / at-least-one / all / none) |
 
 ### MDS-C3xx — Types and Constraints
 

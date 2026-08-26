@@ -77,6 +77,21 @@ export function loadSchema(schemaText, schemaName, baseDir) {
         const key = `${stem}.${name}`;
         if (!defs.has(key)) defs.set(key, spec);
       }
+      // granular reference `$ref "./file.mds#Name"`: pull exactly one named
+      // heading declaration subtree into the importing model (section 33)
+      const frag = imp.path.includes('#') ? imp.path.split('#')[1] : null;
+      if (frag != null) {
+        const found = sub.sections.find((s) => s.labelNorm === normLabel(frag));
+        if (!found) {
+          diags.push(new Diagnostic({
+            code: CODES.UNRESOLVED_REFERENCE, severity: SEVERITY.ERROR, path: '/',
+            file: modelFile, line: imp.line,
+            message: `unresolved reference "${frag}" in "${imp.path.split('#')[0]}"`,
+          }));
+          continue;
+        }
+        model.sections.push(structuredClone(found));
+      }
     }
   };
   walk(root.model, schemaName, baseDir, [absRoot(baseDir, schemaName)]);
@@ -167,7 +182,10 @@ function makeCtx(model, doc, env) {
       const sibs = (inst._parent ? inst._parent.children : doc.sections)
         .filter((x) => meta.get(x)?.decl === m.decl);
       const seg = segOf(m.decl) + (sibs.length > 1 ? `[${sibs.indexOf(inst) + 1}]` : '');
-      const pp = inst._parent ? pathOf(inst._parent) : '';
+      // a matched document-title ancestor is transparent in semantic paths
+      const parentIsTitle = inst._parent
+        && meta.get(inst._parent)?.decl?.id === 'title';
+      const pp = inst._parent && !parentIsTitle ? pathOf(inst._parent) : '';
       p = joinSeg(pp === '/' ? '' : pp, seg);
     }
     pathMemo.set(inst, p);
@@ -210,11 +228,30 @@ function phaseA(doc, model, ctx, env, out) {
     out.push(diag(CODES.METADATA_MALFORMED, '/metadata', fileName, bad.line, 1,
       `malformed metadata entry "${bad.text}"`, null, null));
   }
+  const declaredMeta = new Set((model.metadataDecls ?? []).map((m) => m.labelNorm));
   if (model.additionalFields === false) {
     for (const e of doc.metadata.entries) {
+      if (declaredMeta.has(e.key)) continue;
       out.push(diag(CODES.METADATA_UNEXPECTED, `/metadata/${e.key}`, fileName, e.line, 1,
         `unexpected metadata key "${e.key}" under closed contract`,
         schemaFile, model.explicitDocFlags.additionalFields ?? null));
+    }
+  }
+
+  // typed metadata entries (section 15): declared keys are type-checked
+  for (const md of model.metadataDecls ?? []) {
+    const e = doc.metadata.entries.find((x) => x.key === md.labelNorm || x.key === md.label);
+    if (!e) {
+      if (md.card === 'required') {
+        out.push(diag(CODES.MISSING_FIELD, `/metadata/${md.label}`, fileName, 1, 1,
+          `missing required metadata entry "${md.label}"`, schemaFile, md.line));
+      }
+      continue;
+    }
+    if (md.spec && !checkType(md.spec, e.value)) {
+      const [ecode, emsg] = typeFail(md.spec, e.value);
+      out.push(diag(ecode === CODES.TYPE_MISMATCH ? CODES.METADATA_TYPE : ecode,
+        `/metadata/${md.label}`, fileName, e.line, 1, emsg, schemaFile, md.line));
     }
   }
 
@@ -481,9 +518,62 @@ function phaseBSection(sec, decl, secPath, eff, env, out) {
     if (decl.list) listElems.push(b);
   }
   for (const f of decl.fields) {
-    if (f.card === 'required' && !seenTop.has(f)) {
+    if (f.card === 'required' && !seenTop.has(f) && !f.groupOnly) {
       push(out, CODES.MISSING_FIELD, `${secPath}/${f.id ?? f.labelNorm}`, fileName, 1,
         `missing required field "${f.label}"`, { cFile: schemaFile, cLine: f.line });
+    }
+  }
+
+  // composition groups (section 34): presence rules over member fields
+  const byLabel = new Map();
+  for (const b of sec.bullets) {
+    const ci = b.text.indexOf(':');
+    const lbl = normLabel(ci === -1 ? b.text : b.text.slice(0, ci).trim());
+    byLabel.set(lbl, { b, value: ci === -1 ? '' : b.text.slice(ci + 1).trim() });
+  }
+  for (const g of decl.groups ?? []) {
+    const names = g.members.map((m) => m.label);
+    const present = g.members.filter((m) => byLabel.has(m.labelNorm));
+    let msg = null;
+    if (g.kind === 'oneOf' && present.length !== 1) {
+      msg = `composition oneOf failed: exactly one of [${names.join(', ')}] required, found ${present.length}`;
+    } else if (g.kind === 'anyOf' && present.length === 0) {
+      msg = `composition anyOf failed: at least one of [${names.join(', ')}] required, found 0`;
+    } else if (g.kind === 'allOf') {
+      const miss = g.members.filter((m) => !byLabel.has(m.labelNorm)).map((m) => m.label);
+      if (miss.length > 0) msg = `composition allOf failed: all of [${names.join(', ')}] required, missing ${miss.join(', ')}`;
+    } else if (g.kind === 'not' && present.length > 0) {
+      msg = `composition not failed: [${present.map((m) => m.label).join(', ')}] must be absent`;
+    }
+    if (msg) {
+      push(out, CODES.COMPOSITION_VIOLATION, secPath, fileName, sec.line, msg,
+        { cFile: schemaFile, cLine: g.line });
+    }
+  }
+
+  // conditional contracts (section 35): constraints apply per occurrence
+  // only when the predicate holds against this section's field values
+  for (const c of decl.conditions ?? []) {
+    const lhs = byLabel.get(normLabel(c.field));
+    if (!lhs) continue;
+    const holds = c.op === '==' ? lhs.value === c.value : lhs.value !== c.value;
+    if (!holds) continue;
+    for (const nm of c.requireNames) {
+      if (!byLabel.has(normLabel(nm))) {
+        push(out, CODES.MISSING_FIELD, `${secPath}/${normLabel(nm)}`, fileName, 1,
+          `missing required field "${nm}"`, { cFile: schemaFile, cLine: c.line });
+      }
+    }
+    for (const f of c.fields) {
+      const got = byLabel.get(f.labelNorm);
+      if (!got) {
+        if (f.card === 'required') {
+          push(out, CODES.MISSING_FIELD, `${secPath}/${f.id ?? f.labelNorm}`, fileName, 1,
+            `missing required field "${f.label}"`, { cFile: schemaFile, cLine: f.line });
+        }
+        continue;
+      }
+      checkField(f, got.value, got.b, `${secPath}/${f.id ?? f.labelNorm}`, eff, env, out);
     }
   }
   if (decl.list) {

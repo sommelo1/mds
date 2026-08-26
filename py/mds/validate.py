@@ -11,6 +11,7 @@ mirrors ``js/src/validate.js`` statement by statement so both
 implementations produce byte-identical diagnostic streams.
 """
 
+import copy
 import os
 import re
 
@@ -86,6 +87,23 @@ def load_schema(schema_text, schema_name, base_dir):
                 key = f"{stem}.{name}"
                 if key not in defs:
                     defs[key] = spec
+            # granular reference `$ref "./file.mds#Name"`: pull exactly one
+            # named heading declaration subtree into the importing model
+            frag = imp["path"].split("#")[1] if "#" in imp["path"] else None
+            if frag is not None:
+                found = None
+                for s0 in loaded[abs_p]["sections"]:
+                    if s0["labelNorm"] == norm_label(frag):
+                        found = s0
+                        break
+                if found is None:
+                    diags.append(Diagnostic(
+                        code=CODES["UNRESOLVED_REFERENCE"], severity=SEVERITY_ERROR,
+                        path="/", file=model_file, line=imp["line"],
+                        message=f'unresolved reference "{frag}" in "{target}"',
+                    ))
+                    continue
+                model["sections"].append(copy.deepcopy(found))
 
     walk(model, schema_name, base_dir, [_abs_root(base_dir, schema_name)])
     return {"model": model, "diags": diags}
@@ -230,7 +248,12 @@ class Ctx:
                 seg = _seg_of(m["decl"])
                 if len(same) > 1:
                     seg += f"[{same.index(inst) + 1}]"
-                pp = path_of(inst["_parent"]) if inst["_parent"] else ""
+                pp = ""
+                if inst["_parent"]:
+                    pm = self.meta.get(id(inst["_parent"]), {})
+                    # a matched document-title ancestor is transparent in paths
+                    if pm.get("decl", {}).get("id") != "title":
+                        pp = path_of(inst["_parent"])
                 p = _join_seg("" if pp == "/" else pp, seg)
             memo[key] = p
             return p
@@ -292,12 +315,35 @@ def phase_a(doc, model, ctx, env, out):
     for bad in doc["metadata"]["malformed"]:
         out.append(_diag(CODES["METADATA_MALFORMED"], "/metadata", file_name, bad["line"], 1,
                          f'malformed metadata entry "{bad["text"]}"'))
+    declared_meta = {m.get("labelNorm") for m in model.get("metadataDecls", [])}
     if model["additionalFields"] is False:
         for e in doc["metadata"]["entries"]:
+            if e["key"] in declared_meta:
+                continue
             out.append(_diag(CODES["METADATA_UNEXPECTED"], f'/metadata/{e["key"]}',
                              file_name, e["line"], 1,
                              f'unexpected metadata key "{e["key"]}" under closed contract',
                              schema_file, model["explicitDocFlags"].get("additionalFields")))
+
+    # typed metadata entries (section 15): declared keys are type-checked
+    for md in model.get("metadataDecls", []):
+        entry = None
+        for e in doc["metadata"]["entries"]:
+            if e["key"] in (md.get("labelNorm"), md["label"]):
+                entry = e
+                break
+        if entry is None:
+            if md["card"] == "required":
+                out.append(_diag(CODES["MISSING_FIELD"], f'/metadata/{md["label"]}',
+                                 file_name, 1, 1,
+                                 f'missing required metadata entry "{md["label"]}"',
+                                 schema_file, md["line"]))
+            continue
+        if md.get("spec") and not check_type(md["spec"], entry["value"]):
+            ecode, emsg = _type_fail(md["spec"], entry["value"])
+            out.append(_diag(CODES["METADATA_TYPE"] if ecode == CODES["TYPE_MISMATCH"]
+                             else ecode, f'/metadata/{md["label"]}',
+                             file_name, entry["line"], 1, emsg, schema_file, md["line"]))
 
     for d in decl_preorder(model["sections"]):
         n = ctx.counts.get(d["line"], 0)
@@ -571,10 +617,64 @@ def phase_b_section(sec, decl, sec_path, eff, env, out):
         if decl.get("list"):
             list_elems.append(b)
     for f in decl["fields"]:
-        if f["card"] == "required" and id(f) not in seen_top:
+        if f["card"] == "required" and id(f) not in seen_top and not f.get("groupOnly"):
             _push(out, CODES["MISSING_FIELD"], f"{sec_path}/{f.get('id') or f['labelNorm']}",
                   file_name, 1, f'missing required field "{f["label"]}"',
                   {"cFile": schema_file, "cLine": f["line"]})
+
+    # composition groups (section 34): presence rules over member fields
+    by_label = {}
+    for b in sec["bullets"]:
+        ci = b["text"].find(":")
+        lbl = norm_label(b["text"] if ci == -1 else b["text"][:ci].strip())
+        by_label[lbl] = {"b": b, "value": "" if ci == -1 else b["text"][ci + 1:].strip()}
+    for g in decl.get("groups", []):
+        names = ", ".join(m["label"] for m in g["members"])
+        present = [m for m in g["members"] if m["labelNorm"] in by_label]
+        msg = None
+        if g["kind"] == "oneOf" and len(present) != 1:
+            msg = (f"composition oneOf failed: exactly one of [{names}] required, "
+                   f"found {len(present)}")
+        elif g["kind"] == "anyOf" and len(present) == 0:
+            msg = f"composition anyOf failed: at least one of [{names}] required, found 0"
+        elif g["kind"] == "allOf":
+            miss = ", ".join(m["label"] for m in g["members"]
+                             if m["labelNorm"] not in by_label)
+            if miss:
+                msg = f"composition allOf failed: all of [{names}] required, missing {miss}"
+        elif g["kind"] == "not" and present:
+            msg = ("composition not failed: ["
+                   + ", ".join(m["label"] for m in present) + "] must be absent")
+        if msg:
+            _push(out, CODES["COMPOSITION_VIOLATION"], sec_path, file_name, sec["line"],
+                  msg, {"cFile": schema_file, "cLine": g["line"]})
+
+    # conditional contracts (section 35): constraints apply per occurrence
+    # only when the predicate holds against this section's field values
+    for c in decl.get("conditions", []):
+        lhs = by_label.get(norm_label(c["field"]))
+        if lhs is None:
+            continue
+        holds = (lhs["value"] == c["value"]) if c["op"] == "==" \
+            else (lhs["value"] != c["value"])
+        if not holds:
+            continue
+        for nm in c["requireNames"]:
+            if norm_label(nm) not in by_label:
+                _push(out, CODES["MISSING_FIELD"], f"{sec_path}/{norm_label(nm)}",
+                      file_name, 1, f'missing required field "{nm}"',
+                      {"cFile": schema_file, "cLine": c["line"]})
+        for f in c["fields"]:
+            got = by_label.get(f["labelNorm"])
+            if got is None:
+                if f["card"] == "required":
+                    _push(out, CODES["MISSING_FIELD"],
+                          f"{sec_path}/{f.get('id') or f['labelNorm']}",
+                          file_name, 1, f'missing required field "{f["label"]}"',
+                          {"cFile": schema_file, "cLine": f["line"]})
+                continue
+            check_field(f, got["value"], got["b"],
+                        f"{sec_path}/{f.get('id') or f['labelNorm']}", eff, env, out)
     if decl.get("list"):
         li = decl["list"]
         for ix, b in enumerate(list_elems):

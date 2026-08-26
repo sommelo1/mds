@@ -150,6 +150,89 @@ def builtin_formats(enable_optional_libs=False):
         "syntaxCheck": _json_check,
     }
 
+    def _finding(rel_line, message):
+        return {"relLine": rel_line, "message": message}
+
+    def _content_lines(content):
+        raw = [line.rstrip() for line in str(content).splitlines()]
+        rows = [{"text": text, "ix": ix + 1} for ix, text in enumerate(raw)
+                if text.strip() != ""]
+        return raw, rows
+
+    _MERMAID_KINDS = ("graph", "flowchart", "sequenceDiagram", "classDiagram",
+                      "stateDiagram", "erDiagram", "journey", "gantt", "pie",
+                      "mindmap", "timeline", "quadrantChart", "gitGraph",
+                      "requirementDiagram", "C4Context", "sankey-beta",
+                      "xychart-beta")
+
+    def _math_check(content):
+        _, rows = _content_lines(content)
+        if not rows:
+            return _finding(1, "empty math block")
+        if str(content).count("$") % 2 != 0:
+            return _finding(rows[0]["ix"], "unbalanced math delimiters ($)")
+        return None
+
+    def _mermaid_check(content):
+        _, rows = _content_lines(content)
+        if not rows:
+            return _finding(1, "empty mermaid block")
+        first = rows[0]["text"].strip()
+        if not any(first.startswith(k) for k in _MERMAID_KINDS):
+            return _finding(rows[0]["ix"], "unknown mermaid diagram type")
+        return None
+
+    def _plantuml_check(content):
+        _, rows = _content_lines(content)
+        if not rows or rows[0]["text"].strip() != "@startuml":
+            return _finding(rows[0]["ix"] if rows else 1, "missing @startuml")
+        if rows[-1]["text"].strip() != "@enduml":
+            return _finding(rows[-1]["ix"], "missing @enduml")
+        return None
+
+    def _abc_check(content):
+        _, rows = _content_lines(content)
+        if not rows or not re.match(r"^X:\s*\d+", rows[0]["text"].strip()):
+            return _finding(rows[0]["ix"] if rows else 1,
+                            "abc must begin with an X: index field")
+        return None
+
+    def _csv_check(content):
+        raw, _rows = _content_lines(content)
+        rows = [line for line in raw if line.strip() != ""]
+        if not rows:
+            return _finding(1, "empty csv block")
+        header_cols = len(rows[0].split(","))
+        for i in range(1, len(rows)):
+            n = len(rows[i].split(","))
+            if n != header_cols:
+                return _finding(i + 1, f"row {i + 1} has {n} fields, expected {header_cols}")
+        return None
+
+    def _stl_check(content):
+        _, rows = _content_lines(content)
+        if not rows or not re.match(r"^solid\b", rows[0]["text"].strip(), re.I):
+            return _finding(rows[0]["ix"] if rows else 1, 'stl must start with "solid"')
+        if not re.match(r"^endsolid\b", rows[-1]["text"].strip(), re.I):
+            return _finding(rows[-1]["ix"], 'stl must end with "endsolid"')
+        return None
+
+    def _json_typed(pattern, message):
+        def check(content):
+            rel = json_syntax_error_line(content)
+            if rel != 0:
+                return {"relLine": rel, "message": "invalid JSON syntax"}
+            if not re.search(pattern, str(content)):
+                return _finding(1, message)
+            return None
+        return check
+
+    # Lightweight validators for formats GitHub and GitLab render natively:
+    # deterministic, dependency-free checks; findings surface as MDS-C504.
+    def light504(fmt_id, aliases, check):
+        return {"id": fmt_id, "aliases": aliases, "capabilities": {"syntax": True},
+                "findingCode": "MDS-C504", "syntaxCheck": check}
+
     # Recognition-only builtins: they identify fences but do not validate
     # syntax without optional libraries (deterministic default behavior).
     def recognize(fmt_id, aliases=None):
@@ -157,11 +240,22 @@ def builtin_formats(enable_optional_libs=False):
 
     out = [
         json_fmt,
+        light504("math", ["latex", "tex"], _math_check),
+        light504("mermaid", [], _mermaid_check),
+        light504("plantuml", ["puml"], _plantuml_check),
+        light504("abc", [], _abc_check),
+        light504("csv", [], _csv_check),
+        light504("geojson", [],
+                 _json_typed(r'"type"\s*:\s*"(Point|MultiPoint|LineString|MultiLineString'
+                             r'|Polygon|MultiPolygon|GeometryCollection|Feature|FeatureCollection)"',
+                             "not a GeoJSON object")),
+        light504("topojson", [],
+                 _json_typed(r'"type"\s*:\s*"Topology"', "not a Topology object")),
+        light504("stl", [], _stl_check),
         recognize("yaml"),
         recognize("xml"),
-        recognize("mermaid"),
-        recognize("latex"),
         recognize("sql"),
         recognize("markdown", ["md"]),
+        recognize("svg"),
     ]
     return out

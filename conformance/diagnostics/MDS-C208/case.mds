@@ -1,0 +1,11 @@
+document Deal
+
+# "*" as title required
+
+## Terms required
+
+oneOf
+  - CashAmount: number optional
+  - Symbol: string optional
+
+- Venue: string required

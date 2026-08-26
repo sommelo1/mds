@@ -306,10 +306,12 @@ the same run can be pasted into an LLM repair prompt as `stream`.
 Format and semantic-validation extensions drop in with zero configuration:
 
 - **Formats**: `embed svg`, `embed csv`, … bind by id/alias. Built-ins ship
-  for `json` (full syntax check) and recognition-only stubs for common
-  types; [`examples/ext-stubs-*`](examples/) covers everything GitHub/GitLab
-  render specially (`math`, `plantuml`, `geojson`, `topojson`, `stl`,
-  `abc`, …).
+  for `json` (full syntax check) plus **lightweight validators** for the
+  formats GitHub/GitLab render natively — `math`, `mermaid`, `plantuml`,
+  `abc`, `csv`, `geojson`, `topojson`, `stl` (findings surface as
+  `MDS-C504`); `svg` and friends stay recognition-only.
+  [`examples/ext-stubs-*`](examples/) shows the extension interface for
+  deeper checks (`math`, `plantuml`, `geojson`, `topojson`, `stl`, `abc`, …).
 - **Semantic validators**: consume `expect` regions and may affect the
   verdict when a binding says `semantic: required`. A deterministic
   reference implementation lives in
@@ -360,9 +362,10 @@ Issues and pull requests are welcome. Ground rules:
 
 - Questions and bugs: [GitHub Issues](../../issues)
 - Status: **beta (0.x)** against a draft specification — expect breaking
-  changes before 1.0. Current MVP limitations (composition, conditions,
-  granular `$ref#Name`) are rejected loudly with `MDS-C002` rather than
-  approximated; see the
+  changes before 1.0. Composition (`oneOf/allOf/anyOf/not`), conditional
+  contracts (`when`), granular `$ref#Name` imports and typed metadata are
+  implemented per the conformance fixtures; remaining limitations live in
+  the
   [limitations table](AGENTS.md#known-mvp-limitations-do-not-fix-silently).
 
 Maintained by **[Lorenz Sommer](https://www.linkedin.com/in/sommerlorenz/)**.

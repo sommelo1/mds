@@ -161,8 +161,10 @@ export function parseSchema(text, file) {
   const p = new P(text, file);
   const M = p.model;
   /** @type {Array<object>} */ let headStack = [];
-  /** target collecting indented members */ let memberTarget = null; // 'define'|'embed'|'requires'|null
+  /** target collecting indented members */ let memberTarget = null; // 'define'|'embed'|'requires'|'group'|'when'|'metadata'|null
   let pendingDefine = null;
+  let pendingGroup = null;
+  let pendingWhen = null;
   let requiresCtx = null; // 'formats'|'schemas'|null
   let lastHead = null;
   let lastTable = null;
@@ -221,6 +223,47 @@ export function parseSchema(text, file) {
       pend = null;
     }
 
+    // document-level metadata declarations: `metadata` followed by
+    // `- key: type card` lines at any indent (section 15, typed entries)
+    if (memberTarget === 'metadata') {
+      const mm = /^-\s+(.+)$/.exec(t);
+      if (mm) {
+        const fld = parseFieldBody(mm[1], p, i + 1);
+        if (fld && resolveFieldTypes(fld, M.definitions, p, i + 1)) {
+          fld.line = i + 1;
+          fld.labelNorm = fld.glob ? fld.label : fld.label.replace(/\s+/g, ' ').trim();
+          M.metadataDecls.push(fld);
+        }
+        continue;
+      }
+      memberTarget = null; // any other statement closes the metadata block
+    }
+
+    // a column-0 statement ends composition/conditional member collection
+    if ((memberTarget === 'group' || memberTarget === 'when') && lvl === 0) {
+      pendingGroup = null; pendingWhen = null; memberTarget = null;
+    }
+
+    // composition groups and conditional contracts: members are indented
+    // field declarations (`require X` inside when)
+    if ((memberTarget === 'group' || memberTarget === 'when') && lvl >= 1) {
+      const gm = /^-\s+(.+)$/.exec(t);
+      const rq = memberTarget === 'when' ? t.match(/^require\s+(\S+)$/) : null;
+      if (rq) { pendingWhen.requireNames.push(rq[1]); continue; }
+      if (gm) {
+        const fld = parseFieldBody(gm[1], p, i + 1);
+        if (!fld) continue;
+        fld.line = i + 1;
+        fld.labelNorm = fld.glob ? fld.label : fld.label.replace(/\s+/g, ' ').trim();
+        if (!resolveFieldTypes(fld, M.definitions, p, i + 1)) continue;
+        if (memberTarget === 'group') { fld.groupOnly = true; pendingGroup.members.push(fld); }
+        else pendingWhen.fields.push(fld);
+        continue;
+      }
+      // non-member line closes the block
+      pendingGroup = null; pendingWhen = null; memberTarget = null;
+    }
+
     // Semantic expectation / validation binding (v0.13 section 21):
     // free-form text (expect) or key-value pairs (validate) captured
     // verbatim from deeper-indented following lines. Core exposes them but
@@ -244,6 +287,7 @@ export function parseSchema(text, file) {
     if (lvl === 0 && !secScoped) {
       memberTarget = null; requiresCtx = null; lastTable = null; lastEmbed = null;
       fieldStack = []; lastFieldOwner = null;
+      pendingGroup = null; pendingWhen = null;
       const kw = t.split(/\s+/)[0];
 
       if (/^#{1,6}\s+/.test(t)) {
@@ -258,6 +302,7 @@ export function parseSchema(text, file) {
           additionalSections: null, additionalFields: null,
           prose: null, list: null, tables: [], embeds: [], fields: [],
           contentDecls: [], children: [],
+          groups: [], conditions: [],
         };
         while (headStack.length && headStack[headStack.length - 1].level >= level) headStack.pop();
         (headStack.length ? headStack[headStack.length - 1].children : M.sections).push(h);
@@ -292,6 +337,10 @@ export function parseSchema(text, file) {
           M.imports.push({ path: m[1], line: i + 1, kw });
           continue;
         }
+        case 'metadata':
+          memberTarget = 'metadata';
+          if (!Array.isArray(M.metadataDecls)) M.metadataDecls = [];
+          continue;
         case 'additionalSections':
         case 'additionalFields': {
           const v = t.split(/\s+/)[1];
@@ -303,9 +352,21 @@ export function parseSchema(text, file) {
         case 'requires':
           memberTarget = 'requires'; requiresCtx = null;
           continue;
-        case 'when': case 'oneOf': case 'allOf': case 'anyOf': case 'not':
-          p.err(CODES.SCHEMA_UNKNOWN_STATEMENT, i + 1, `unsupported statement "${kw}"`);
+        case 'when': case 'oneOf': case 'allOf': case 'anyOf': case 'not': {
+          if (!lastHead) { p.err(CODES.SCHEMA_UNKNOWN_STATEMENT, i + 1, `unsupported statement "${kw}"`); continue; }
+          if (kw === 'when') {
+            const mw = t.match(/^when\s+(\S+)\s*(==|!=)\s*(.+)$/);
+            if (!mw) { p.err(CODES.SCHEMA_SYNTAX, i + 1, 'invalid schema syntax: when expects <Field> == <value>'); continue; }
+            const cond = { field: mw[1], op: mw[2], value: mw[3].trim().replace(/^"(.*)"$/, '$1'), fields: [], requireNames: [], line: i + 1 };
+            lastHead.conditions.push(cond);
+            pendingWhen = cond; pendingGroup = null; memberTarget = 'when';
+            continue;
+          }
+          const g = { kind: kw, members: [], line: i + 1 };
+          lastHead.groups.push(g);
+          pendingGroup = g; pendingWhen = null; memberTarget = 'group';
           continue;
+        }
         default:
           p.err(CODES.SCHEMA_UNKNOWN_STATEMENT, i + 1, `unsupported statement "${kw}"`);
           continue;

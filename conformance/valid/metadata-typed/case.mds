@@ -1,0 +1,11 @@
+document Note
+
+metadata
+- id: date required
+- status: enum[draft, reviewed] optional
+
+# "*" as title required
+
+## Body required
+
+prose required minLength=1
