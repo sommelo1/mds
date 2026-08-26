@@ -16,6 +16,8 @@ import re
 from .diagnostics import CODES, SEVERITY_ERROR, Diagnostic
 from .types import (
     parse_type,
+    check_type,
+    describe_type,
     tokenize_type_region,
     validate_constraint_value,
 )
@@ -117,8 +119,18 @@ def _parse_field_body(body, p, line):
               'invalid schema syntax: field declaration requires ":"')
         return None
     left = body[:cut].strip()
-    right_tokens = tokenize_type_region(body[cut + 1:].strip())
-    f = {"label": None, "glob": False, "id": None, "card": "required"}
+    right = body[cut + 1:].strip()
+    f = {"label": None, "glob": False, "id": None, "card": "required",
+         "nullable": False, "nullTokens": []}
+    # `nullable` / `nullable(t1, t2)` may contain spaces inside the parens;
+    # extract it before space-based tokenization (section 23.1).
+    nm = re.search(r"(?:^|\s)nullable(?:\s*\(([^)]*)\))?(?=\s|$)", right)
+    if nm:
+        f["nullable"] = True
+        f["nullTokens"] = ([s.strip() for s in nm.group(1).split(",") if s.strip()]
+                           if nm.group(1) else [])
+        right = (right[:nm.start()] + " " + right[nm.end():]).strip()
+    right_tokens = tokenize_type_region(right)
     q = re.match(r'^"([^"]*)"\s*(?:as\s+(\S+))?$', left)
     if q:
         f["label"] = q.group(1)
@@ -147,6 +159,9 @@ def _parse_field_body(body, p, line):
         if c:
             f["card"] = c
             continue
+        if t == "unique":
+            f["constraints"]["unique"] = ""
+            continue
         eq = t.find("=")
         if eq > 0:
             key = t[:eq]
@@ -161,12 +176,54 @@ def _parse_field_body(body, p, line):
     return f
 
 
+def _spec_kind(spec):
+    """Resolve ref chains to the concrete spec (section 23.1 helpers)."""
+    s = spec
+    while s["kind"] == "ref":
+        s = s["target"]
+    return s
+
+
+def _token_collides(spec, tok):
+    """True when tok is a member of the declared value language (C008 guard)."""
+    s = _spec_kind(spec)
+    if s["kind"] == "union":
+        return any(_token_collides(alt, tok) for alt in s["of"])
+    if s["kind"] == "enum":
+        return tok in s["values"]
+    if s["kind"] == "scalar":
+        if s["name"] in ("string", "any", "null"):
+            return False
+        return bool(check_type(s, tok))
+    return False
+
+
+_NULLABLE_TARGET_MSG = ('"nullable" applies only to typed fields, table columns, '
+                        'list elements and metadata entries')
+
+
+def _validate_nullable(d, p, line):
+    """Validate a ``nullable`` declaration after its type resolved (C007/C008)."""
+    if not d.get("nullable"):
+        return
+    kind = _spec_kind(d["spec"])["kind"]
+    if kind not in ("scalar", "enum", "union"):
+        p.err(CODES["SCHEMA_NULLABLE_TARGET"], line, _NULLABLE_TARGET_MSG)
+        return
+    for tok in d["nullTokens"]:
+        if d["constraints"].get("const") == tok or _token_collides(d["spec"], tok):
+            p.err(CODES["SCHEMA_NULLABLE_COLLISION"], line,
+                  f'nullable token "{tok}" collides with type {describe_type(d["spec"])}')
+            return
+
+
 def _resolve_field_types(f, definitions, p, line):
     r = parse_type(f["typeExpr"], definitions)
     if not r["ok"]:
         p.err(CODES["SCHEMA_UNKNOWN_TYPE"], line, r["error"])
         return False
     f["spec"] = r["spec"]
+    _validate_nullable(f, p, line)
     return True
 
 
@@ -481,6 +538,9 @@ def parse_schema(text, file):
             if m_prose:
                 pr = {"card": "required", "constraints": {}, "line": i + 1, "expect": None, "validateSem": None}
                 for tk in tokenize_type_region(m_prose.group(1)):
+                    if tk == "nullable" or tk.startswith("nullable("):
+                        p.err(CODES["SCHEMA_NULLABLE_TARGET"], i + 1, _NULLABLE_TARGET_MSG)
+                        continue
                     c = _parse_card_token(tk)
                     if c:
                         pr["card"] = c
@@ -503,8 +563,16 @@ def parse_schema(text, file):
             m_list = re.match(r"^list\b\s*(.*)$", t)
             if m_list:
                 li = {"typeExpr": "string", "card": "required", "constraints": {},
-                      "line": i + 1, "expect": None, "validateSem": None}
-                toks = tokenize_type_region(m_list.group(1))
+                      "line": i + 1, "expect": None, "validateSem": None,
+                      "nullable": False, "nullTokens": []}
+                list_rest = m_list.group(1)
+                lnm = re.search(r"(?:^|\s)nullable(?:\s*\(([^)]*)\))?(?=\s|$)", list_rest)
+                if lnm:
+                    li["nullable"] = True
+                    li["nullTokens"] = ([s.strip() for s in lnm.group(1).split(",") if s.strip()]
+                                        if lnm.group(1) else [])
+                    list_rest = (list_rest[:lnm.start()] + " " + list_rest[lnm.end():]).strip()
+                toks = tokenize_type_region(list_rest)
                 ti = 0
                 if (toks and not _parse_card_token(toks[0])
                         and "=" not in toks[0] and toks[0] != "unique"):
@@ -533,6 +601,7 @@ def parse_schema(text, file):
                     p.err(CODES["SCHEMA_UNKNOWN_TYPE"], i + 1, r["error"])
                 else:
                     li["spec"] = r["spec"]
+                    _validate_nullable(li, p, i + 1)
                 last_head["list"] = li
                 last_head["contentDecls"].append({"kind": "list", "line": i + 1})
                 continue
@@ -541,6 +610,9 @@ def parse_schema(text, file):
                 tb = {"name": None, "card": "required", "constraints": {},
                       "cols": [], "line": i + 1, "expect": None, "validateSem": None}
                 for tk in tokenize_type_region(m_table.group(1)):
+                    if tk == "nullable" or tk.startswith("nullable("):
+                        p.err(CODES["SCHEMA_NULLABLE_TARGET"], i + 1, _NULLABLE_TARGET_MSG)
+                        continue
                     c = _parse_card_token(tk)
                     if c:
                         tb["card"] = c
@@ -571,6 +643,9 @@ def parse_schema(text, file):
                 emb = {"format": m_embed.group(1).lower(), "card": "required",
                        "schemaRef": None, "validation": None, "line": i + 1, "expect": None, "validateSem": None}
                 for tk in tokenize_type_region(m_embed.group(2)):
+                    if tk == "nullable" or tk.startswith("nullable("):
+                        p.err(CODES["SCHEMA_NULLABLE_TARGET"], i + 1, _NULLABLE_TARGET_MSG)
+                        continue
                     c = _parse_card_token(tk)
                     if c:
                         emb["card"] = c

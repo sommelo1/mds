@@ -64,8 +64,9 @@ Regenerate fixtures after intentional spec-behavior changes:
 ## Known MVP limitations (do not "fix" silently)
 
 Composition (`oneOf/allOf/anyOf/not`, MDS-C208), conditional contracts
-(`when`), granular `$ref "path#Name"` resolution and typed metadata entries
-(`metadata` block, MDS-C602/C603) ARE implemented; their normative behavior
+(`when`), granular `$ref "path#Name"` resolution, typed metadata entries
+(`metadata` block, MDS-C602/C603) and `nullable` data-absence semantics
+(section 23.1, MDS-C007/C008) ARE implemented; their normative behavior
 is defined by the fixtures under `conformance/` — change fixtures first,
 then both implementations in lockstep. Built-in super-minimal embed sanity
 checks (math, mermaid, plantuml, abc, csv, geojson, topojson, stl;

@@ -1,0 +1,5 @@
+document T
+
+## S required
+
+- A: integer nullable(0, na)

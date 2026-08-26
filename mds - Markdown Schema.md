@@ -1000,6 +1000,8 @@ A list item is interpreted as a field if and only if it has the form `Label: val
 
 All other list items are elements of the section's list. A section that declares no fields treats every list item as a plain list element, even if it contains a colon.
 
+A field present in the document is always type-checked against its declaration regardless of cardinality; whether its value may be empty is decided solely by `nullable` (section 23.1).
+
 ---
 
 # 23. Native Types
@@ -1038,6 +1040,94 @@ number   decimal point `.`, optional sign and exponent, no group separators
 integer  number without fractional part
 string   raw text after normalization
 ```
+
+### 23.1 Structural Absence versus Data Absence
+
+MDS strictly separates two kinds of "missing". Confusing them is the single most common contract mistake, so the distinction is normative:
+
+```text
+STRUCTURAL ABSENCE — the element itself is missing.
+  The bullet, the column, the section does not exist in the document.
+  Governed by CARDINALITY: required | optional.
+
+DATA ABSENCE — the element exists, but its value is unknown.
+  The bullet is there ("- Age:"), the cell is there — but empty,
+  or written as null, or as a declared placeholder such as na.
+  Governed by NULLABLE.
+```
+
+Form analogy: a form without a line for "middle name" is structural absence; a present line left blank is data absence. MDS documents are forms.
+
+**The master matrix.** "Present but empty" means an empty value, the literal `null`, or a declared placeholder token:
+
+| Declaration | Element missing entirely *(structural)* | Present, but empty *(data)* | Present with a concrete value |
+|---|---|---|---|
+| `- Age: integer` | ❌ missing-field error | ❌ type error | ✅ |
+| `- Age: integer optional` | ✅ | ❌ type error | ✅ |
+| `- Age: integer nullable` | ❌ missing-field error | ✅ null | ✅ |
+| `- Age: integer optional nullable` | ✅ | ✅ null | ✅ |
+
+Read each column as one question: *may it be absent?* (`optional`) versus *may it be empty?* (`nullable`). A concrete value is always accepted; that is what the type is for.
+
+Field example — the same section three ways:
+
+```text
+## Identity            ## Identity            ## Identity
+- Name: Anna           - Name: Anna           - Name: Anna
+                       - Age:                 - Age: 32
+Age absent entirely    Age present, empty     Age present, concrete
+(structural)           (data absence)         (normal case)
+```
+
+Table example — why one keyword can never substitute for the other. A Markdown table is rectangular: a column exists for all rows or for none.
+
+```text
+B column removed entirely    B column present, one cell empty
+| A |                        | A | B |
+|---|                        |---|---|
+| 1 |                        | 1 |   |
+                             | 2 | 5 |
+structural → optional        data absence → nullable
+(applies to ALL rows)        (decided per cell)
+```
+
+Consequently `optional` can never express "this cell may be empty", and `nullable` can never express "omit this column".
+
+**Placeholder tokens.** The tokens meaning "no value" are exactly:
+
+```text
+immutable core (always, every nullable declaration):
+  ""          the empty value (empty cell, "- X:" with nothing after the colon)
+  null        the literal word
+
+declared extras:
+  nullable(na)             na additionally counts as "no value"
+  nullable(na, n/a, -)     several extras, comma-separated, spaces allowed
+```
+
+Extras EXTEND the core; they never replace it. Matching is exact and case-sensitive. Without the `nullable` flag nothing is treated as null: even the literal `null` fails an `integer` check like any other text.
+
+**Normative evaluation order per value:**
+
+```text
+1. raw matches a null token of the declaration  → value IS null;
+   type check and constraints are skipped entirely
+2. otherwise type check                          → C301/C303/C304/…
+3. otherwise constraints                         → C302/…
+```
+
+Consequences, all normative:
+
+- Constraints (`min`, `pattern`, …) apply only to concrete values; null bypasses them.
+- Under `unique`, two null values are EQUAL to each other (SQL DISTINCT semantics): a row of only-null unique cells duplicates itself.
+- The canonical semantic model stores the JSON value `null`, never the token text.
+- Applicability: `nullable` MAY appear on typed fields, table columns, list element declarations and metadata entries. It MUST NOT appear on sections, `prose` or `embed` declarations (those have occurrence cardinality only); violations fail schema processing with `MDS-C007`.
+- An extra token that is already a member of the declared value language (for example `nullable(0)` on `integer`, or a token equal to an `enum` value or a `const`) is almost certainly a data error and MUST fail schema processing with `MDS-C008`. Tokens on `string`, `any` or `null` bases are exempt from this guard. Zero (`0`) is a number, not "no value" — surveys encoding "no answer" as 0 must use a distinct placeholder instead.
+- Arrays and maps are out of scope for `nullable`; combining them MUST fail with `MDS-C007`.
+
+**Feedback for LLM repair loops.** When a value fails its type check and the raw value is empty, validators SHOULD append the hint `; declare "nullable" to allow missing values`. Conversely, `missing required field/column` points at structural absence: the repair is `optional` (or adding the element), never `nullable`.
+
+**Draft interaction.** The draft command infers column and field types from observed concrete values only. Any observed empty value marks the declaration `nullable` — never `optional`, which would wrongly encode a data observation as a structural one. Drafted contracts therefore self-validate over their source documents including their gaps.
 
 ---
 
@@ -1191,7 +1281,7 @@ Binding rules (normative):
 
 Tables bind to table declarations positionally, in document order within their section. The declaration name (`table Inputs`) is a stable identifier for introspection, references and diagnostics; it is not matched against document text. A section containing exactly one table MAY use the unnamed form `table required`.
 
-By default, declared columns MAY appear in any order. Columns not declared by the schema follow the `additionalFields` setting of their section. An empty cell represents `null`. `minItems` and `maxItems` constrain row counts; `unique` compares whole rows.
+By default, declared columns MAY appear in any order. Columns not declared by the schema follow the `additionalFields` setting of their section. An empty cell represents `null` exactly where the column declares `nullable`; otherwise the cell is type-checked like any field value (section 23.1). Column presence is structural (`required`/`optional`, decided per column for all rows); emptiness of an individual cell is a data property (`nullable`, decided per cell). `minItems` and `maxItems` constrain row counts; `unique` compares whole rows and treats two null values as equal.
 
 The table name is the semantic identifier and never needs to appear literally in the Markdown, mirroring human labels versus semantic identifiers (section 28). Positional binding therefore avoids fragile matching over visible document text.
 
@@ -2338,7 +2428,7 @@ table [<Name>] [cardinality]
 embed <format> [cardinality]
   schema: <path>
   validation: optional | required
-- <Label> [as <identifier>]: <type> [cardinality] [constraints]
+- <Label> [as <identifier>]: <type> [cardinality] [nullable[(tokens)]] [constraints]
 additionalSections true | false
 additionalFields true | false
 requires ...
@@ -2354,6 +2444,8 @@ block attributes     indented key: value beneath the owning statement
 ```
 
 Cardinality keywords: `required`, `optional`, `one-or-more`, `zero-or-more`; shorthand `?`, `*`, `+`. Omitted cardinality defaults to `required`.
+
+`nullable [(token, …)]` marks data absence (section 23.1): empty value and literal `null` always count as "no value"; listed tokens extend them. It applies to typed fields, table columns, list elements and metadata entries only.
 
 Heading and label patterns support exactly one wildcard: `*` matches any non-empty character sequence; all other characters are literal.
 
@@ -2561,6 +2653,8 @@ A run succeeds only if zero `error` diagnostics were produced.
 | MDS-C004 | constraint not applicable to target type       |
 | MDS-C005 | invalid constraint value                       |
 | MDS-C006 | invalid heading or label pattern               |
+| MDS-C007 | nullable on an unsupported target              |
+| MDS-C008 | nullable token collides with the value language |
 
 ### MDS-C1xx — Document and Section Structure
 

@@ -339,7 +339,8 @@ def phase_a(doc, model, ctx, env, out):
                                  f'missing required metadata entry "{md["label"]}"',
                                  schema_file, md["line"]))
             continue
-        if md.get("spec") and not check_type(md["spec"], entry["value"]):
+        if md.get("spec") and not _is_null_value(md, entry["value"]) \
+                and not check_type(md["spec"], entry["value"]):
             ecode, emsg = _type_fail(md["spec"], entry["value"])
             out.append(_diag(CODES["METADATA_TYPE"] if ecode == CODES["TYPE_MISMATCH"]
                              else ecode, f'/metadata/{md["label"]}',
@@ -459,14 +460,31 @@ def _resolve_kind(spec):
     return s
 
 
+def _is_null_value(decl, raw):
+    """True when raw denotes "no value" for a nullable declaration: the empty
+    string and literal ``null`` are the immutable core tokens; extra tokens
+    come from ``nullable(...)`` (section 23.1). Non-nullable declarations
+    never treat anything as null here.
+    """
+    if not decl.get("nullable"):
+        return False
+    return raw == "" or raw == "null" or raw in (decl.get("nullTokens") or [])
+
+
+def _unique_key(decl, raw):
+    """Canonical unique-key form: every null token folds to one sentinel."""
+    return "\x00" if _is_null_value(decl, raw) else raw
+
+
 def _type_fail(spec, raw):
     rk = _resolve_kind(spec)
     described = describe_type(spec)
+    hint = '; declare "nullable" to allow missing values' if raw == "" else ""
     if rk["kind"] == "enum":
-        return CODES["ENUM_VIOLATION"], f'value "{raw}" is not one of {described}'
+        return CODES["ENUM_VIOLATION"], f'value "{raw}" is not one of {described}{hint}'
     if rk["kind"] == "union":
-        return CODES["UNION_NO_MATCH"], f'value "{raw}" matches none of {described}'
-    return CODES["TYPE_MISMATCH"], f'value "{raw}" does not match type {described}'
+        return CODES["UNION_NO_MATCH"], f'value "{raw}" matches none of {described}{hint}'
+    return CODES["TYPE_MISMATCH"], f'value "{raw}" does not match type {described}{hint}'
 
 
 def _push(out, code, path, file, line, message, contract=None, depth=0):
@@ -530,14 +548,15 @@ def check_field(f, value_part, bullet, f_path, eff, env, out):
                     break
                 seen_idx[el] = ix
         return
-    if not check_type(f["spec"], value_part):
+    if not _is_null_value(f, value_part) and not check_type(f["spec"], value_part):
         code, msg = _type_fail(f["spec"], value_part)
         _push(out, code, f_path, file_name, bullet["line"], msg, contract)
         return
-    cc = check_constraints(f["constraints"], value_part, {})
-    if cc:
-        _push(out, CODES["CONSTRAINT_VIOLATION"], f_path, file_name, bullet["line"],
-              cc, contract)
+    if not _is_null_value(f, value_part):
+        cc = check_constraints(f["constraints"], value_part, {})
+        if cc:
+            _push(out, CODES["CONSTRAINT_VIOLATION"], f_path, file_name, bullet["line"],
+                  cc, contract)
 
 
 def re_split_commas(value):
@@ -678,7 +697,8 @@ def phase_b_section(sec, decl, sec_path, eff, env, out):
     if decl.get("list"):
         li = decl["list"]
         for ix, b in enumerate(list_elems):
-            if li.get("spec") and not check_type(li["spec"], b["text"]):
+            if li.get("spec") and not _is_null_value(li, b["text"]) \
+                    and not check_type(li["spec"], b["text"]):
                 code, msg = _type_fail(li["spec"], b["text"])
                 _push(out, code, f"{sec_path}/list[{ix + 1}]", file_name, b["line"], msg,
                       {"cFile": schema_file, "cLine": li["line"]})
@@ -689,7 +709,7 @@ def phase_b_section(sec, decl, sec_path, eff, env, out):
         if "unique" in li["constraints"]:
             seen_idx = {}
             for ix, b in enumerate(list_elems):
-                txt = b["text"]
+                txt = _unique_key(li, b["text"])
                 if txt in seen_idx:
                     _push(out, CODES["COLLECTION_VIOLATION"], f"{sec_path}/list", file_name,
                           b["line"],
@@ -728,6 +748,8 @@ def phase_b_section(sec, decl, sec_path, eff, env, out):
         for ri, row in enumerate(tbl["rows"]):
             for hx, cd in col_by_header.items():
                 raw = row["cells"][hx] if hx < len(row["cells"]) else ""
+                if _is_null_value(cd, raw):
+                    continue
                 if not check_type(cd["spec"], raw):
                     code, msg = _type_fail(cd["spec"], raw)
                     _push(out, code,
@@ -745,14 +767,30 @@ def phase_b_section(sec, decl, sec_path, eff, env, out):
         if rc:
             _push(out, CODES["COLLECTION_VIOLATION"], t_path, file_name, tbl["headerLine"],
                   rc, {"cFile": schema_file, "cLine": td["line"]})
+        # per-column unique: null values compare equal (section 23.1)
+        for cd in td["cols"]:
+            if "unique" not in cd["constraints"]:
+                continue
+            seen = {}
+            hx = next((h for h, c in col_by_header.items() if c is cd), None)
+            for ri, row in enumerate(tbl["rows"]):
+                raw = row["cells"][hx] if hx is not None and hx < len(row["cells"]) else ""
+                key = _unique_key(cd, raw)
+                if key in seen:
+                    _push(out, CODES["COLLECTION_VIOLATION"], t_path, file_name,
+                          row["line"],
+                          f'unique violated at rows {seen[key] + 1} and {ri + 1}',
+                          {"cFile": schema_file, "cLine": cd["line"]})
+                    break
+                seen[key] = ri
         if "unique" in td["constraints"]:
             seen_rows = {}
             for ri, row in enumerate(tbl["rows"]):
                 cells = []
                 for cd in td["cols"]:
                     hx = next((h for h, c in col_by_header.items() if c is cd), None)
-                    cells.append(row["cells"][hx] if hx is not None
-                                 and hx < len(row["cells"]) else "")
+                    cell = row["cells"][hx] if hx is not None and hx < len(row["cells"]) else ""
+                    cells.append(_unique_key(cd, cell))
                 key = "\x1f".join(cells)
                 if key in seen_rows:
                     _push(out, CODES["COLLECTION_VIOLATION"], t_path, file_name,

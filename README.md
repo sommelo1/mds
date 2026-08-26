@@ -18,6 +18,7 @@ structure, types and constraints, plus native **semantic expectations**
 | | |
 |---|---|
 | 🧾 **Deterministic contract** | sections, ordering, cardinality, types, constraints — validated like code |
+| 🕳️ **Presence vs. emptiness** | `optional` says the element may be *missing*; `nullable(na)` says its value may be *unknown* — structural and data absence never blur |
 | 🧠 **Semantic expectation** | `expect:` states what content *belongs* in a region; readable by humans and LLMs |
 | 🔌 **Optional semantic validation** | `validate:` delegates evaluation to extensions (rule-based, embeddings, LLM judges) |
 | 🔁 **Two byte-identical engines** | JavaScript (Node ≥ 18, zero deps) and Python (≥ 3.10, stdlib-only) agree on every conformance fixture |
@@ -81,6 +82,22 @@ $ npx mds validate doc.md doc.mds
 
 summary: 1 errors, 0 warnings
 ```
+
+Two kinds of "missing", two keywords — the contract states both explicitly,
+so an LLM never has to invent data to satisfy a gap:
+
+```mds
+table Metrics
+- Value: number                  # must be present and concrete
+- Baseline: number nullable      # present, but may be empty or null
+- Delta: number nullable(na)     # additionally na counts as "no value"
+- Owner: string optional         # column may be left out entirely
+```
+
+Rule of thumb: `optional` = the box may be missing · `nullable` = the box is
+there but may be empty. Empty values bypass type checks and constraints;
+under `unique`, two empties count as equal. Full matrix, examples and the
+normative rules live in spec section 23.1.
 
 ## CLI reference
 

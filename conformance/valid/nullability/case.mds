@@ -1,0 +1,16 @@
+document N
+
+# "*" as title required
+
+## Metrics required
+
+table Metrics
+- Indicator: string
+- Value: number nullable(na)
+- Owner: string optional nullable(-)
+
+## Meta required
+
+- Doi: uri nullable
+- Note: string nullable(na, n/a)
+- Code: string pattern="^[A-Z]{3}$" nullable

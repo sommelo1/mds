@@ -1,0 +1,4 @@
+error
+- MDS-C008 error / case.mds:5:1 nullable token "0" collides with type integer
+
+summary: 1 errors, 0 warnings

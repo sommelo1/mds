@@ -68,6 +68,9 @@ Inside this repository checkout `node js/bin/mds.js …` always works.
 
 - Repeated sections become `<label> one-or-more`; singletons stay
   `required`.
+- Empty cells and empty field values are treated as *data absence*, not
+  structural absence: the draft infers types from concrete values only and
+  marks such columns/fields `nullable` — never `optional`.
 - `prose minLength=N` comes from the observed text of each occurrence;
   relax it when future documents may be shorter.
 - Field and table-column types are inferred from observed values; an empty

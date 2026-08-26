@@ -84,6 +84,35 @@ def test_draft_e2e():
     assert "..." in skel, "roundtrip lost prose placeholders"
 
 
+def test_draft_gap_nullable():
+    """Structural absence vs data absence (section 23.1): empty cells and
+    empty field values are missing DATA, so the draft must emit
+    ``nullable``, and its own self-check proves the contract accepts them.
+    """
+    gap_doc = """# G
+
+## M
+
+| A | B |
+|---|---|
+| 1 |   |
+| 2 | 5 |
+
+## F
+
+- Age: 42
+- Score:
+"""
+    gdraft = draft_schema(gap_doc, "gaps.md")
+    assert gdraft["exitCode"] == 0, gdraft["stream"]
+    assert re.search(r"^- B: integer nullable$", gdraft["schemaText"], re.M), \
+        "empty column must be declared nullable"
+    assert re.search(r"^- Score: string nullable$", gdraft["schemaText"], re.M), \
+        "empty-only field must be declared nullable"
+    assert re.search(r"^- A: integer$", gdraft["schemaText"], re.M), \
+        "concrete column stays non-nullable"
+
+
 def flatten_non_title(sections, title):
     """Flatten the section tree, skipping the title section itself."""
     out = []

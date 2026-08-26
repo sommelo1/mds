@@ -1,0 +1,4 @@
+invalid
+- MDS-C305 error /S/S case.md:9:1 contract case.mds:8 unique violated at rows 2 and 3
+
+summary: 1 errors, 0 warnings

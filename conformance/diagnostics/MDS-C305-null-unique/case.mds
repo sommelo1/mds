@@ -1,0 +1,8 @@
+document T
+
+# "*" as title required
+
+## S required
+
+table S
+- Id: string unique nullable

@@ -9,7 +9,7 @@
  * @module schema
  */
 import { Diagnostic, CODES, SEVERITY } from './diagnostics.js';
-import { parseType, tokenizeTypeRegion, validateConstraintValue, SCALARS } from './types.js';
+import { parseType, checkType, describeType, tokenizeTypeRegion, validateConstraintValue, SCALARS } from './types.js';
 
 const CARDS = new Set(['required', 'optional', 'one-or-more', 'zero-or-more']);
 const SHORTHAND = { '?': 'optional', '*': 'zero-or-more', '+': 'one-or-more' };
@@ -98,8 +98,17 @@ function parseFieldBody(body, p, line) {
     return null;
   }
   const left = body.slice(0, cut).trim();
-  const rightTokens = tokenizeTypeRegion(body.slice(cut + 1).trim());
-  const f = { label: null, glob: false, id: null, card: 'required' };
+  let right = body.slice(cut + 1).trim();
+  const f = { label: null, glob: false, id: null, card: 'required', nullable: false, nullTokens: [] };
+  // `nullable` / `nullable(t1, t2)` may contain spaces inside the parens;
+  // extract it before space-based tokenization (section 23.1).
+  const nm = right.match(/(?:^|\s)nullable(?:\s*\(([^)]*)\))?(?=\s|$)/);
+  if (nm) {
+    f.nullable = true;
+    f.nullTokens = nm[1] ? nm[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
+    right = `${right.slice(0, nm.index)} ${right.slice(nm.index + nm[0].length)}`.trim();
+  }
+  const rightTokens = tokenizeTypeRegion(right);
   const q = left.match(/^\"([^\"]*)\"\s*(?:as\s+(\S+))?$/);
   if (q) {
     f.label = q[1];
@@ -124,6 +133,7 @@ function parseFieldBody(body, p, line) {
     const t = rightTokens[k];
     const c = parseCardToken(t);
     if (c) { f.card = c; continue; }
+    if (t === 'unique') { f.constraints.set('unique', ''); continue; }
     const eq = t.indexOf('=');
     if (eq > 0) {
       const key = t.slice(0, eq);
@@ -139,6 +149,43 @@ function parseFieldBody(body, p, line) {
   return f;
 }
 
+/** Resolve ref chains to the concrete spec (section 23.1 helpers). */
+function specKind(spec) { let s = spec; while (s.kind === 'ref') s = s.target; return s; }
+
+/** True when tok is a member of the declared value language (C008 guard). */
+function tokenCollides(spec, tok) {
+  const s = specKind(spec);
+  if (s.kind === 'union') return s.of.some((alt) => tokenCollides(alt, tok));
+  if (s.kind === 'enum') return s.values.includes(tok);
+  if (s.kind === 'scalar') {
+    if (s.name === 'string' || s.name === 'any' || s.name === 'null') return false;
+    return checkType(s, tok);
+  }
+  return false;
+}
+
+/**
+ * Validate a `nullable` declaration after its type resolved: only typed
+ * leaves may be nullable (C007), and extra tokens must not collide with
+ * the declared value language or a const constraint (C008).
+ */
+function validateNullable(d, p, line) {
+  if (!d.nullable) return;
+  const k = specKind(d.spec).kind;
+  if (k !== 'scalar' && k !== 'enum' && k !== 'union') {
+    p.err(CODES.SCHEMA_NULLABLE_TARGET, line,
+      '"nullable" applies only to typed fields, table columns, list elements and metadata entries');
+    return;
+  }
+  for (const tok of d.nullTokens) {
+    if (d.constraints.get('const') === tok || tokenCollides(d.spec, tok)) {
+      p.err(CODES.SCHEMA_NULLABLE_COLLISION, line,
+        `nullable token "${tok}" collides with type ${describeType(d.spec)}`);
+      return;
+    }
+  }
+}
+
 /** Resolve a parsed field's type expression against known definitions. */
 function resolveFieldTypes(f, definitions, p, line) {
   const r = parseType(f.typeExpr, definitions);
@@ -147,6 +194,7 @@ function resolveFieldTypes(f, definitions, p, line) {
     return false;
   }
   f.spec = r.spec;
+  validateNullable(f, p, line);
   return true;
 }
 
@@ -419,6 +467,11 @@ export function parseSchema(text, file) {
       if (mProse) {
         const pr = { card: 'required', constraints: new Map(), line: i + 1, expect: null, validateSem: null };
         for (const tk of tokenizeTypeRegion(mProse[1])) {
+          if (tk === 'nullable' || tk.startsWith('nullable(')) {
+            p.err(CODES.SCHEMA_NULLABLE_TARGET, i + 1,
+              '"nullable" applies only to typed fields, table columns, list elements and metadata entries');
+            continue;
+          }
           const c = parseCardToken(tk);
           if (c) { pr.card = c; continue; }
           const eq = tk.indexOf('=');
@@ -437,8 +490,15 @@ export function parseSchema(text, file) {
       }
       const mList = t.match(/^list\b\s*(.*)$/);
       if (mList) {
-        const li = { typeExpr: 'string', card: 'required', constraints: new Map(), line: i + 1, expect: null, validateSem: null };
-        const toks = tokenizeTypeRegion(mList[1]);
+        const li = { typeExpr: 'string', card: 'required', constraints: new Map(), line: i + 1, expect: null, validateSem: null, nullable: false, nullTokens: [] };
+        let listRest = mList[1];
+        const lnm = listRest.match(/(?:^|\s)nullable(?:\s*\(([^)]*)\))?(?=\s|$)/);
+        if (lnm) {
+          li.nullable = true;
+          li.nullTokens = lnm[1] ? lnm[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
+          listRest = `${listRest.slice(0, lnm.index)} ${listRest.slice(lnm.index + lnm[0].length)}`.trim();
+        }
+        const toks = tokenizeTypeRegion(listRest);
         let ti = 0;
         if (toks.length && !parseCardToken(toks[0]) && toks[0].indexOf('=') === -1 && toks[0] !== 'unique') li.typeExpr = toks[ti++];
         for (; ti < toks.length; ti++) {
@@ -456,7 +516,7 @@ export function parseSchema(text, file) {
         }
         const r = parseType(li.typeExpr, M.definitions);
         if (!r.ok) p.err(CODES.SCHEMA_UNKNOWN_TYPE, i + 1, r.error);
-        else li.spec = r.spec;
+        else { li.spec = r.spec; validateNullable(li, p, i + 1); }
         lastHead.list = li;
         lastHead.contentDecls.push({ kind: 'list', line: i + 1 });
         continue;
@@ -465,6 +525,11 @@ export function parseSchema(text, file) {
       if (mTable) {
         const tb = { name: null, card: 'required', constraints: new Map(), cols: [], line: i + 1, expect: null, validateSem: null };
         for (const tk of tokenizeTypeRegion(mTable[1])) {
+          if (tk === 'nullable' || tk.startsWith('nullable(')) {
+            p.err(CODES.SCHEMA_NULLABLE_TARGET, i + 1,
+              '"nullable" applies only to typed fields, table columns, list elements and metadata entries');
+            continue;
+          }
           const c = parseCardToken(tk);
           if (c) { tb.card = c; continue; }
           const eq = tk.indexOf('=');
@@ -486,6 +551,11 @@ export function parseSchema(text, file) {
       if (mEmbed) {
         const em = { format: mEmbed[1].toLowerCase(), card: 'required', schemaRef: null, validation: null, line: i + 1, expect: null, validateSem: null };
         for (const tk of tokenizeTypeRegion(mEmbed[2])) {
+          if (tk === 'nullable' || tk.startsWith('nullable(')) {
+            p.err(CODES.SCHEMA_NULLABLE_TARGET, i + 1,
+              '"nullable" applies only to typed fields, table columns, list elements and metadata entries');
+            continue;
+          }
           const c = parseCardToken(tk);
           if (c) { em.card = c; continue; }
           p.err(CODES.SCHEMA_SYNTAX, i + 1, `unexpected token "${tk}" in embed declaration`);

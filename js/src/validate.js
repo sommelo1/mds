@@ -248,7 +248,7 @@ function phaseA(doc, model, ctx, env, out) {
       }
       continue;
     }
-    if (md.spec && !checkType(md.spec, e.value)) {
+    if (md.spec && !isNullValue(md, e.value) && !checkType(md.spec, e.value)) {
       const [ecode, emsg] = typeFail(md.spec, e.value);
       out.push(diag(ecode === CODES.TYPE_MISMATCH ? CODES.METADATA_TYPE : ecode,
         `/metadata/${md.label}`, fileName, e.line, 1, emsg, schemaFile, md.line));
@@ -373,12 +373,29 @@ function emitDocumentOrderViolations(doc, model, ctx, env, out) {
 
 function resolveKind(spec) { let s = spec; while (s.kind === 'ref') s = s.target; return s; }
 
+/**
+ * True when raw denotes "no value" for a nullable declaration: the empty
+ * string and literal `null` are the immutable core tokens; extra tokens
+ * come from `nullable(...)` (section 23.1). Non-nullable declarations
+ * never treat anything as null here.
+ */
+function isNullValue(decl, raw) {
+  if (!decl.nullable) return false;
+  return raw === '' || raw === 'null' || (decl.nullTokens ?? []).includes(raw);
+}
+
+/** Canonical unique-key form: every null token folds to one sentinel. */
+function uniqueKey(decl, raw) {
+  return isNullValue(decl, raw) ? '\u0000' : raw;
+}
+
 function typeFail(spec, raw) {
   const rk = resolveKind(spec);
   const described = describeType(spec);
-  if (rk.kind === 'enum') return [CODES.ENUM_VIOLATION, `value "${raw}" is not one of ${described}`];
-  if (rk.kind === 'union') return [CODES.UNION_NO_MATCH, `value "${raw}" matches none of ${described}`];
-  return [CODES.TYPE_MISMATCH, `value "${raw}" does not match type ${described}`];
+  const hint = raw === '' ? '; declare "nullable" to allow missing values' : '';
+  if (rk.kind === 'enum') return [CODES.ENUM_VIOLATION, `value "${raw}" is not one of ${described}${hint}`];
+  if (rk.kind === 'union') return [CODES.UNION_NO_MATCH, `value "${raw}" matches none of ${described}${hint}`];
+  return [CODES.TYPE_MISMATCH, `value "${raw}" does not match type ${described}${hint}`];
 }
 
 function push(out, code, path, file, line, message, contract, depth = 0) {
@@ -443,13 +460,15 @@ function checkField(f, valuePart, bullet, fPath, eff, env, out) {
     }
     return;
   }
-  if (!checkType(f.spec, valuePart)) {
+  if (!isNullValue(f, valuePart) && !checkType(f.spec, valuePart)) {
     const [code, msg] = typeFail(f.spec, valuePart);
     push(out, code, fPath, env.fileName, bullet.line, msg, contract);
     return;
   }
-  const cc = checkConstraints(f.constraints, valuePart, {});
-  if (cc) push(out, CODES.CONSTRAINT_VIOLATION, fPath, env.fileName, bullet.line, cc, contract);
+  if (!isNullValue(f, valuePart)) {
+    const cc = checkConstraints(f.constraints, valuePart, {});
+    if (cc) push(out, CODES.CONSTRAINT_VIOLATION, fPath, env.fileName, bullet.line, cc, contract);
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -579,7 +598,7 @@ function phaseBSection(sec, decl, secPath, eff, env, out) {
   if (decl.list) {
     const li = decl.list;
     listElems.forEach((b, ix) => {
-      if (li.spec && !checkType(li.spec, b.text)) {
+      if (li.spec && !isNullValue(li, b.text) && !checkType(li.spec, b.text)) {
         const [code, msg] = typeFail(li.spec, b.text);
         push(out, code, `${secPath}/list[${ix + 1}]`, fileName, b.line, msg,
           { cFile: schemaFile, cLine: li.line });
@@ -591,7 +610,7 @@ function phaseBSection(sec, decl, secPath, eff, env, out) {
     if (li.constraints.has('unique')) {
       const seenIdx = new Map();
       for (let ix = 0; ix < listElems.length; ix++) {
-        const t = listElems[ix].text;
+        const t = uniqueKey(li, listElems[ix].text);
         if (seenIdx.has(t)) {
           push(out, CODES.COLLECTION_VIOLATION, `${secPath}/list`, fileName, listElems[ix].line,
             `unique violated at rows ${seenIdx.get(t) + 1} and ${ix + 1}`,
@@ -636,6 +655,7 @@ function phaseBSection(sec, decl, secPath, eff, env, out) {
     tbl.rows.forEach((row, ri) => {
       for (const [hx, cd] of colByHeader) {
         const raw = row.cells[hx] ?? '';
+        if (isNullValue(cd, raw)) continue;
         if (!checkType(cd.spec, raw)) {
           const [code, msg] = typeFail(cd.spec, raw);
           push(out, code, `${tPath}[${ri + 1}]/${cd.id ?? cd.labelNorm}`, fileName, row.line, msg,
@@ -652,12 +672,29 @@ function phaseBSection(sec, decl, secPath, eff, env, out) {
     const rc = checkConstraints(td.constraints, '', { count: tbl.rows.length });
     if (rc) push(out, CODES.COLLECTION_VIOLATION, tPath, fileName, tbl.headerLine, rc,
       { cFile: schemaFile, cLine: td.line });
+    // per-column unique: null values compare equal (section 23.1)
+    for (const cd of td.cols) {
+      if (!cd.constraints.has('unique')) continue;
+      const seen = new Map();
+      const hx = [...colByHeader.entries()].find(([, c]) => c === cd)?.[0];
+      for (let ri = 0; ri < tbl.rows.length; ri++) {
+        const raw = hx != null ? (tbl.rows[ri].cells[hx] ?? '') : '';
+        const key = uniqueKey(cd, raw);
+        if (seen.has(key)) {
+          push(out, CODES.COLLECTION_VIOLATION, tPath, fileName, tbl.rows[ri].line,
+            `unique violated at rows ${seen.get(key) + 1} and ${ri + 1}`,
+            { cFile: schemaFile, cLine: cd.line });
+          break;
+        }
+        seen.set(key, ri);
+      }
+    }
     if (td.constraints.has('unique')) {
       const seenRows = new Map();
       for (let ri = 0; ri < tbl.rows.length; ri++) {
         const key = td.cols.map((cd) => {
           const hx = [...colByHeader.entries()].find(([, c]) => c === cd)?.[0];
-          return hx != null ? (tbl.rows[ri].cells[hx] ?? '') : '';
+          return hx != null ? uniqueKey(cd, tbl.rows[ri].cells[hx] ?? '') : '';
         }).join('\u001f');
         if (seenRows.has(key)) {
           push(out, CODES.COLLECTION_VIOLATION, tPath, fileName, tbl.rows[ri].line,

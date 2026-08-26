@@ -1,0 +1,4 @@
+error
+- MDS-C007 error / case.mds:5:1 "nullable" applies only to typed fields, table columns, list elements and metadata entries
+
+summary: 1 errors, 0 warnings

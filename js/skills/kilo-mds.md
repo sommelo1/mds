@@ -73,7 +73,7 @@ One finding per line, rendered as a Markdown list item:
 | MDS-C206 | missing required field | add `- Label: value` |
 | MDS-C207 | unexpected field (closed contract) | remove or rename field |
 | MDS-C208 | composition violated (oneOf/allOf/anyOf/not) | satisfy the declared field-set combination |
-| MDS-C301 | value fails type check | see encodings below |
+| MDS-C301 | value fails type check | see encodings below; `value ""` means: declare `nullable` if the value may be missing |
 | MDS-C302 | constraint violated (min/pattern/…) | adjust value |
 | MDS-C303/C304 | enum/const/union mismatch | pick an allowed value |
 | MDS-C305 | collection rule (items/unique) | dedupe or resize |
@@ -91,6 +91,31 @@ One finding per line, rendered as a Markdown list item:
 - numbers: dot decimal, no thousand separators
 - uri/uuid/binary: standard forms (RFC 3986 / RFC 4122 / Base64)
 
+## Presence vs. emptiness (never confuse them)
+
+Two kinds of "missing", two keywords:
+
+```text
+STRUCTURAL ABSENCE — the element itself is missing
+  (bullet absent, column removed from the header, section missing)
+  → cardinality: required / optional
+
+DATA ABSENCE — the element exists but its value is unknown
+  (empty cell, "- Age:", null, or a placeholder like na)
+  → nullable / nullable(na, n/a)
+```
+
+Three questions per field/column:
+
+1. Can it be missing entirely?            yes → `optional`
+2. Can it exist without a value?          yes → `nullable`
+3. Which words mean "no value"?           empty and `null` always;
+   extras in parentheses: `nullable(na)`
+
+Empty values bypass type checks AND constraints. Under `unique`, two empty
+values count as duplicates. `0` is never "no value" — declaring it as one
+(`nullable(0)` on integer) is rejected at contract-parse time.
+
 ## Authoring rules (avoid failures upfront)
 
 - Fields are bullets with `Label: value` inside their section; nested
@@ -98,7 +123,8 @@ One finding per line, rendered as a Markdown list item:
 - Front matter between `---` lines is flat `key: value` text. It is NOT
   YAML: no `yes/on` coercion, no anchors, everything stays a string.
 - Tables bind positionally to `table` declarations in order; column
-  order inside the table is free; an empty cell means null.
+  order inside the table is free. An empty cell means "no value" only in
+  columns declared `nullable`; otherwise it fails the cell's type check.
 - Embedded blocks: the fence info string must match the declared format
   (`json`, `mermaid`, …); JSON must be strict (no comments, no trailing
   commas). Built-in format checks are super-minimal sanity checks

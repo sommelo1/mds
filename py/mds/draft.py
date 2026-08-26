@@ -159,11 +159,15 @@ def draft_schema(doc_text, doc_name="doc.md"):
             present = sum(1 for fields, _ in by_occ
                           if any(f[0] == label for f in fields))
             fcard = "" if present == n else " optional"
-            ftype = _infer_type(values)
+            # empty values mean missing data, not a type: infer from concrete
+            # values and mark the declaration nullable (section 23.1)
+            saw_empty = any(v == "" for v in values)
+            ftype = _infer_type([v for v in values if v != ""])
+            nullable = " nullable" if saw_empty else ""
             if first_field:
                 out.append("")
                 first_field = False
-            out.append(f"- {label}: {ftype}{fcard}")
+            out.append(f"- {label}: {ftype}{fcard}{nullable}")
 
         list_counts = [len(plain) for _fields, plain in by_occ]
         if any(c > 0 for c in list_counts):
@@ -201,14 +205,15 @@ def draft_schema(doc_text, doc_name="doc.md"):
                             empty = True
                         else:
                             values.append(cell)
-                optional = empty or not values
-                col_specs.append((_infer_type(values), optional))
+                nullable = empty or not values
+                col_specs.append((_infer_type(values), nullable))
             name = _pascal([g["label"]]) + (str(t_idx) if t_idx > 1 else "")
             out.append("")
             out.append(f"table {name}{tcard}")
             for i, col in enumerate(cols):
-                ftype, optional = col_specs[i] if i < len(col_specs) else ("string", True)
-                opt = " optional" if optional else ""
+                ftype, nullable = col_specs[i] if i < len(col_specs) else ("string", True)
+                # empty cells mean missing data → nullable, not optional
+                opt = " nullable" if nullable else ""
                 out.append(f"- {col}: {ftype}{opt}")
 
         # fenced embeds: only JSON fences are declared; other fence languages

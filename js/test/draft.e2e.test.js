@@ -80,5 +80,28 @@ for (const lang of fences) {
 }
 check('roundtrip keeps prose placeholders', skel.includes('...'));
 
+// Scenario 2 — structural absence vs data absence (section 23.1): empty
+// cells and empty field values are missing DATA, so the draft must emit
+// `nullable`, and its own self-check proves the contract accepts them.
+const gapDoc = `# G
+
+## M
+
+| A | B |
+|---|---|
+| 1 |   |
+| 2 | 5 |
+
+## F
+
+- Age: 42
+- Score:
+`;
+const gdraft = await draftSchema({ docText: gapDoc, docName: 'gaps.md' });
+check('gap draft self-check passes', gdraft.exitCode === 0, gdraft.stream);
+check('gap draft marks empty column nullable', /^- B: integer nullable$/m.test(gdraft.schemaText), gdraft.schemaText);
+check('gap draft marks empty field nullable', /^- Score: string nullable$/m.test(gdraft.schemaText));
+check('gap draft keeps required concrete column', /^- A: integer$/m.test(gdraft.schemaText));
+
 process.exitCode = failed ? 1 : 0;
 console.log(failed ? 'draft E2E: FAILURES' : 'draft E2E: all checks passed');

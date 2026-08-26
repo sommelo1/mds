@@ -160,9 +160,12 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
     for (const [label, values] of fieldLabels) {
       const present = byOcc.filter(({ fields }) => fields.some((f) => f.label === label)).length;
       const fcard = present === n ? 'required' : 'optional';
-      const type = inferType(values);
+      // empty values mean missing data, not a type: infer from concrete
+      // values and mark the declaration nullable (section 23.1)
+      const sawEmpty = values.some((v) => v === '');
+      const type = inferType(values.filter((v) => v !== ''));
       if (fieldLabels.keys().next().value === label) out.push('');
-      out.push(`- ${label}: ${type}${fcard === 'optional' ? ' optional' : ''}`);
+      out.push(`- ${label}: ${type}${fcard === 'optional' ? ' optional' : ''}${sawEmpty ? ' nullable' : ''}`);
     }
 
     // plain bullet lists
@@ -195,22 +198,23 @@ export async function draftSchema({ docText, docName = 'doc.md' }) {
       const types = [];
       for (let c = 0; c < width; c++) {
         const values = [];
-        let empty = false;
+        let sawEmpty = false;
         for (const t of tabs) {
           for (const row of t.rows) {
             const cell = row.cells[c] ?? '';
-            if (cell === '') empty = true;
+            if (cell === '') sawEmpty = true;
             else values.push(cell);
           }
         }
-        types.push({ type: inferType(values), optional: empty || values.length === 0 });
+        // empty cells mean missing data → nullable, not optional
+        types.push({ type: inferType(values), nullable: sawEmpty || values.length === 0 });
       }
       const name = `${pascal([g.label])}${tIdx > 1 ? tIdx : ''}`;
       out.push('');
       out.push(`table ${name}${tcard === 'optional' ? ' optional' : ''}`);
       cols.forEach((col, i) => {
-        const { type, optional } = types[i] ?? { type: 'string', optional: true };
-        out.push(`- ${col}: ${type}${optional ? ' optional' : ''}`);
+        const { type, nullable } = types[i] ?? { type: 'string', nullable: true };
+        out.push(`- ${col}: ${type}${nullable ? ' nullable' : ''}`);
       });
     }
 
