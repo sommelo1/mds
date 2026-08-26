@@ -21,6 +21,12 @@ function run(cmd, args, cwd) {
   return r.stdout || '';
 }
 
+function runQuiet(cmd, args, cwd) {
+  const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', shell: false });
+  if (r.status !== 0) process.exit(r.status ?? 1);
+  return r.stdout || '';
+}
+
 function replace(file, from, to) {
   const path = join(root, file);
   const text = readFileSync(path, 'utf8');
@@ -32,8 +38,38 @@ if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
   fail('usage: node tools/release.mjs <x.y.z>');
 }
 
+for (const [cmd, args] of [
+  ['git', ['--version']],
+  ['node', ['--version']],
+  ['npm', ['--version']],
+  [process.platform === 'win32'
+    ? join(root, '.venv', 'Scripts', 'python.exe')
+    : join(root, '.venv', 'bin', 'python'), ['--version']],
+]) {
+  try {
+    runQuiet(cmd, args, root);
+  } catch {
+    fail(`missing required tool: ${Array.isArray(cmd) ? cmd.join(' ') : cmd}`);
+  }
+}
+
+const branch = runQuiet('git', ['rev-parse', '--abbrev-ref', 'HEAD'], root).trim();
+if (branch !== 'main') fail(`release must run on main, got ${branch || '<unknown>'}`);
+
+const status = runQuiet('git', ['status', '--porcelain'], root).trim();
+if (status) {
+  fail(
+    'working tree must be clean before release; commit or stash these changes first:\n' +
+    status
+  );
+}
+
 const current = JSON.parse(readFileSync(join(root, 'js', 'package.json'), 'utf8')).version;
 if (current === version) fail(`version already is ${version}`);
+
+for (const file of ['js/package.json', 'py/pyproject.toml', 'py/mds/__init__.py', 'README.md']) {
+  if (!readFileSync(join(root, file), 'utf8').length) fail(`${file} is empty`);
+}
 
 replace('js/package.json', `"version": "${current}"`, `"version": "${version}"`);
 replace('py/pyproject.toml', `version = "${current}"`, `version = "${version}"`);
