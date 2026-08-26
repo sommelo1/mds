@@ -43,6 +43,28 @@ def _fail(msg):
     return 2
 
 
+def _read_text(path):
+    """Read a text file with a UTF-8-first fallback and a warning."""
+    encodings = ("utf-8", "utf-8-sig", "utf-16", "utf-16le", "utf-16be")
+    last_err = None
+    for encoding in encodings:
+        try:
+            with open(path, "r", encoding=encoding) as fh:
+                text = fh.read()
+            if encoding != "utf-8":
+                sys.stderr.write(
+                    f"mds: warning: {path} decoded as {encoding}; "
+                    "please save the file as UTF-8\n"
+                )
+            return text
+        except UnicodeDecodeError as err:
+            last_err = err
+    raise UnicodeDecodeError(
+        last_err.encoding, last_err.object, last_err.start,
+        last_err.end, f"could not decode {path} as UTF-8/UTF-16"
+    )
+
+
 # Skill templates shipped with the package and their project targets.
 SKILL_TARGETS = [
     item
@@ -139,8 +161,7 @@ def main(argv=None):
         if cmd in ("inspect", "scaffold"):
             if len(positional) < 2:
                 return _fail(f"{cmd} requires a schema path")
-            with open(positional[1], "r", encoding="utf-8") as fh:
-                text = fh.read()
+            text = _read_text(positional[1])
             r = inspect_schema(text, positional[1]) if cmd == "inspect" \
                 else scaffold_doc(text, positional[1])
             sys.stdout.write(r["stream"] + "\n")
@@ -148,8 +169,7 @@ def main(argv=None):
         if cmd == "draft":
             if len(positional) < 2:
                 return _fail("draft requires a document path")
-            with open(positional[1], "r", encoding="utf-8") as fh:
-                doc_text = fh.read()
+            doc_text = _read_text(positional[1])
             r = draft_schema(doc_text, positional[1])
             sys.stdout.write(r["schemaText"])
             if r["exitCode"] != 0:
@@ -165,10 +185,8 @@ def main(argv=None):
             if len(positional) < 3:
                 return _fail("validate requires <doc.md> <schema.mds>")
             _, doc_path, schema_path = positional[:3]
-            with open(doc_path, "r", encoding="utf-8") as fh:
-                doc_text = fh.read()
-            with open(schema_path, "r", encoding="utf-8") as fh:
-                schema_text = fh.read()
+            doc_text = _read_text(doc_path)
+            schema_text = _read_text(schema_path)
             r = validate_document(
                 doc_text=doc_text, doc_name=doc_path,
                 schema_text=schema_text, schema_name=schema_path,

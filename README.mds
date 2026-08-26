@@ -2,13 +2,12 @@ document Readme
 
 # "MDS — Markdown Document Schema" as title required
 
-## "Watch the Introduction" required
+## Watch the Introduction required
 
-prose required minLength=1
+prose required minLength=119
 
 expect:
-  Show a clickable YouTube thumbnail for the MDS introduction video with
-  video id 4rEo9036y2w. It must appear before the Why MDS section.
+  TODO: describe what the Watch the Introduction section must convey.
 
 validate:
   semantic: optional
@@ -18,10 +17,7 @@ validate:
 embed text
 
 expect:
-  An ASCII/text tree diagram illustrating the two halves of an MDS
-  contract: the deterministic contract (structure, types, constraints)
-  and the semantic expectation (expect, readable by humans and LLMs,
-  optionally evaluated by extensions). Must not contain prose paragraphs.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -31,9 +27,7 @@ validate:
 embed bash
 
 expect:
-  Shell commands showing how to run the CLI without installing anything
-  via npx (Node) and how to install and run it via pipx (Python). Must
-  invoke the `mds validate` command.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -41,9 +35,7 @@ validate:
 embed mds
 
 expect:
-  A minimal example contract named "Report" declaring a required title,
-  a Summary section with prose and an `expect:` block, and a Metrics
-  table. Must be valid MDS contract syntax.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -51,8 +43,7 @@ validate:
 embed text
 
 expect:
-  A sample CLI invocation and its plain-Markdown diagnostic output,
-  ending in a `summary:` line reporting error and warning counts.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -60,9 +51,7 @@ validate:
 embed mds
 
 expect:
-  A contract snippet contrasting `optional` and `nullable`/`nullable(na)`
-  column declarations on a table, illustrating structural absence versus
-  data absence.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -72,8 +61,7 @@ validate:
 embed mds
 
 expect:
-  A contract snippet showing that declaring a heading binds only that
-  heading, leaving its nested subtree unconstrained.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -81,9 +69,7 @@ validate:
 embed mds
 
 expect:
-  A contract snippet showing the `additionalSections false` and
-  `additionalFields false` directives that make a contract strict about
-  undeclared headings or fields/columns.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -97,9 +83,7 @@ table CliReference
 embed bash
 
 expect:
-  A shell walkthrough of the draft-fill-validate-scaffold roundtrip
-  workflow, invoking `mds draft`, `mds validate` and `mds scaffold` in
-  sequence with explanatory comments.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -111,20 +95,22 @@ list string minItems=3
 embed bash
 
 expect:
-  Shell commands showing how to run `mds skills install`, both via an
-  installed CLI and via npx without installing.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
+
+table AgentSkills
+- Skill: string
+- Use it for: string
+- What it does: string
 
 ## "Use as a library" required
 
 prose required minLength=173
 
 expect:
-  State that everything the CLI does is available programmatically, for
-  embedding the library in tooling, CI checks, MCP servers, or LLM repair
-  loops.
+  TODO: describe what the Use as a library section must convey.
 
 validate:
   semantic: optional
@@ -134,9 +120,7 @@ validate:
 prose required minLength=131
 
 expect:
-  Explain that this entry point takes file paths, reading them from disk
-  and using the paths themselves as diagnostic labels, so labels never
-  drift from sources.
+  TODO: describe what the 1 · Validate files section must convey.
 
 validate:
   semantic: optional
@@ -144,8 +128,7 @@ validate:
 embed python
 
 expect:
-  Python code importing `validate_files` from `mds` and calling it with
-  two file paths, printing the exit code and stream.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -153,8 +136,7 @@ validate:
 embed js
 
 expect:
-  JavaScript code importing `validateFiles` from `mds-core` and calling
-  it with `docPath`/`schemaPath`, logging exitCode and stream.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -164,9 +146,7 @@ validate:
 prose required minLength=205
 
 expect:
-  Explain that this entry point takes in-memory text (templates, stdin,
-  LLM output) passed inline, with default filenames of case.md/case.mds
-  when none are supplied.
+  TODO: describe what the 2 · Validate strings section must convey.
 
 validate:
   semantic: optional
@@ -174,8 +154,7 @@ validate:
 embed python
 
 expect:
-  Python code defining a document and contract as inline strings and
-  calling `validate_document` from `mds`, printing exit code and stream.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -183,9 +162,7 @@ validate:
 embed js
 
 expect:
-  JavaScript code defining a document and contract as inline template
-  strings and calling `validateDocument` from `mds-core`, logging
-  exitCode and stream.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -211,13 +188,7 @@ table Doc3ValidateStreams2
 prose required minLength=884
 
 expect:
-  Explain that format and semantic-validation extensions drop in with
-  zero configuration: format extensions (e.g. embed svg/csv) bind by
-  id/alias, with built-in super-minimal sanity checks for common formats
-  and no claim of completeness; semantic validators consume `expect`
-  regions and can affect the verdict when required; discovery follows
-  npm/entry-point conventions per platform, and missing required
-  extensions fail loudly.
+  TODO: describe what the Extensions — no core rebuilds section must convey.
 
 validate:
   semantic: optional
@@ -231,9 +202,7 @@ list string minItems=5
 embed bash
 
 expect:
-  Shell commands to clone the repo and run both test suites: the
-  JavaScript conformance test via node and the Python pytest suite from
-  a virtualenv, for both Windows and POSIX.
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -241,10 +210,7 @@ validate:
 prose required minLength=263
 
 expect:
-  State that both implementations must stay byte-identical on all
-  fixtures, that fixtures are regenerated with `node tools/gen-fixtures.mjs`
-  after an intentional behavior change, and that agent skills are
-  regenerated from `skills/` with `node tools/gen-skills.mjs`.
+  TODO: describe what the Development section must convey.
 
 validate:
   semantic: optional
@@ -254,10 +220,17 @@ validate:
 prose required minLength=419
 
 expect:
-  State that issues and PRs are welcome, and list the ground rules:
-  behavior changes must touch spec, JS, Python and fixtures together;
-  the diagnostic grammar is stable and tools depend on it; spec keywords
-  MUST/SHOULD/MAY follow RFC 2119.
+  TODO: describe what the Contributing section must convey.
+
+validate:
+  semantic: optional
+
+### Release packaging required
+
+embed bash
+
+expect:
+  TODO: describe what the content must show.
 
 validate:
   semantic: optional
@@ -265,16 +238,13 @@ validate:
 ## Support & status required
 
 - Questions and bugs: string
+- Current release: string
 - Status: string
 
 prose required minLength=412
 
 expect:
-  State where to file questions and bugs (GitHub Issues), that the
-  project is in beta (0.x) against a draft spec with breaking changes
-  possible before 1.0, list implemented features (composition, when,
-  granular refs, typed metadata), point to the limitations table, and
-  credit the maintainer.
+  TODO: describe what the Support & status section must convey.
 
 validate:
   semantic: optional
@@ -284,7 +254,7 @@ validate:
 prose required minLength=14
 
 expect:
-  State the project is MIT licensed, linking to the LICENSE file.
+  TODO: describe what the License section must convey.
 
 validate:
   semantic: optional

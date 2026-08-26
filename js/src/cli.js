@@ -41,6 +41,23 @@ function fail(msg) {
   process.exitCode = 2;
 }
 
+function readText(file) {
+  const encodings = ['utf8', 'utf8', 'utf16le', 'utf16le', 'utf16le'];
+  for (const encoding of encodings) {
+    try {
+      const text = readFileSync(file, encoding);
+      if (encoding !== 'utf8') {
+        process.stderr.write(`mds: warning: ${file} decoded as ${encoding}; please save the file as UTF-8\n`);
+      }
+      return text;
+    } catch (err) {
+      if (err?.code !== 'ERR_INVALID_ARG_VALUE' && err?.name !== 'TypeError') continue;
+      throw err;
+    }
+  }
+  return readFileSync(file, 'utf8');
+}
+
 /** Skill templates shipped with the package and their project targets. */
 const SKILLS_DIR = fileURLToPath(new URL('../skills/', import.meta.url));
 const SKILL_TARGETS = [
@@ -117,7 +134,7 @@ export async function main(argv) {
     if (cmd === 'inspect' || cmd === 'scaffold') {
       const file = positional[1];
       if (!file) return fail(`${cmd} requires a schema path`);
-      const text = readFileSync(file, 'utf8');
+      const text = readText(file);
       const r = cmd === 'inspect'
         ? inspectSchema(text, file)
         : scaffoldDoc(text, file);
@@ -129,7 +146,7 @@ export async function main(argv) {
       const file = positional[1];
       if (!file) return fail('draft requires a document path');
       const r = await draftSchema({
-        docText: readFileSync(file, 'utf8'),
+        docText: readText(file),
         docName: file,
       });
       process.stdout.write(r.schemaText);
@@ -145,9 +162,9 @@ export async function main(argv) {
       const [, docPath, schemaPath] = positional;
       if (!docPath || !schemaPath) return fail('validate requires <doc.md> <schema.mds>');
       const r = await validateDocument({
-        docText: readFileSync(docPath, 'utf8'),
+        docText: readText(docPath),
         docName: docPath,
-        schemaText: readFileSync(schemaPath, 'utf8'),
+        schemaText: readText(schemaPath),
         schemaName: schemaPath,
         baseDir: resolve(schemaPath, '..'),
         maxDiagnostics: Number.isFinite(flags.max) ? flags.max : null,
