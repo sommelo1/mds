@@ -389,7 +389,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 
 ## Documentation
 
-- [Specification (v0.17.1 Beta)](mds%20-%20Markdown%20Schema.md) — normative
+- [Specification (v0.17.2 Beta)](mds%20-%20Markdown%20Schema.md) — normative
 - [Conformance fixtures](conformance/) — 49 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
@@ -434,6 +434,7 @@ publishing:
 node tools/package-py.mjs   # clean build + wheel/sdist content check
 node tools/package-js.mjs   # clean npm pack + tarball content check
 node tools/release.mjs 0.17.2  # bump, test, commit, push, tag
+node tools/release.mjs `X.Y.Z`  # run the full release flow for a new version
 ```
 
 The Python release gate checks that `mds/__init__.py`, `mds/__main__.py`,
@@ -447,7 +448,7 @@ runtime from the same version line.
 ## Support & status
 
 - Questions and bugs: [GitHub Issues](../../issues)
-- Current release: **0.17.1**
+- Current release: **0.17.2**
 - Status: **beta (0.x)** against a draft specification — expect breaking
   changes before 1.0. Composition (`oneOf/allOf/anyOf/not`), conditional
   contracts (`when`), granular `$ref#Name` imports and typed metadata are
