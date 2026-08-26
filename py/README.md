@@ -35,4 +35,13 @@ print(r["exitCode"], r["stream"])
 mds skills install
 ```
 
+This installs four skills for agent integration (Claude Code, Hermes, Kilo):
+
+| Skill | Purpose |
+|-------|---------|
+| `mds-validate` | Validate a document against a contract, repair until clean |
+| `mds-write` | Generate a document from a contract, then validate |
+| `mds-draft` | Derive a starter contract from an existing document (`mds draft`) |
+| `mds-install` | Resolve or install the `mds` CLI when none is available |
+
 See the repository root README and the normative specification for details, the zero-config extension contract (entry-point group `mds_ext`) and conformance fixtures.
