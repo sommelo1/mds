@@ -69,5 +69,5 @@ jobs:
               if re.search(rf"mds_core-{re.escape(target)}(?:-py3-none-any)?\\.(?:whl|tar\\.gz)", text):
                   sys.exit(0)
               time.sleep(10)
-          raise SystemExit("PyPI simple index did not expose mds-core 0.17.2")
+          raise SystemExit(f"PyPI simple index did not expose mds-core {target}")
           PY
