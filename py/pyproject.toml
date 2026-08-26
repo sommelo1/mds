@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mds-core"
-version = "0.17.0"
+version = "0.17.1"
 description = "MDS - Markdown Document Schema: validate Markdown against .mds contracts from files, strings or streams - deterministic structure, types, constraints and LLM-readable semantic expectations with structured diagnostics."
 readme = "README.md"
 license = "MIT"
@@ -36,7 +36,12 @@ Issues = "https://github.com/sommelo1/mds/issues"
 mds = "mds.cli:console_main"
 
 [tool.setuptools]
-packages = ["mds", "mds.skills"]
+package-dir = {"" = "."}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mds*"]
 
 [tool.setuptools.package-data]
 mds = ["skills/*.md"]

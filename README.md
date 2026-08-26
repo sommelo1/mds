@@ -389,7 +389,7 @@ Format and semantic-validation extensions drop in with zero configuration:
 
 ## Documentation
 
-- [Specification (v0.17.0 Beta)](mds%20-%20Markdown%20Schema.md) — normative
+- [Specification (v0.17.1 Beta)](mds%20-%20Markdown%20Schema.md) — normative
 - [Conformance fixtures](conformance/) — 49 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
@@ -425,10 +425,23 @@ Issues and pull requests are welcome. Ground rules:
 3. Spec keywords MUST/SHOULD/MAY follow RFC 2119 as used by the
    specification's conformance section.
 
+### Release packaging
+
+Use the repository tooling to build and verify release artifacts before
+publishing:
+
+```bash
+node tools/package-py.mjs   # clean build + wheel/sdist content check
+cd js && npm pack --dry-run  # verify npm package contents
+```
+
+The Python release gate checks that `mds/__init__.py`, `mds/__main__.py`,
+`mds/cli.py` and the shipped skills are present in the wheel and sdist.
+
 ## Support & status
 
 - Questions and bugs: [GitHub Issues](../../issues)
-- Current release: **0.17.0**
+- Current release: **0.17.1**
 - Status: **beta (0.x)** against a draft specification — expect breaking
   changes before 1.0. Composition (`oneOf/allOf/anyOf/not`), conditional
   contracts (`when`), granular `$ref#Name` imports and typed metadata are

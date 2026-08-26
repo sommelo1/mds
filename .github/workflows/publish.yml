@@ -39,6 +39,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -47,9 +50,8 @@ jobs:
           python -m pip install pytest
           python -m pytest tests -q
         working-directory: py
-      - name: Build sdist and wheel
-        run: pipx run build
-        working-directory: py
+      - name: Build and verify Python release artifacts
+        run: node tools/package-py.mjs
       - name: Publish (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

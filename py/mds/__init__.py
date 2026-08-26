@@ -29,7 +29,7 @@ from .validate import (
     validate_streams,
 )
 
-__version__ = "0.17.0"
+__version__ = "0.17.1"
 
 __all__ = [
     "CODES", "Diagnostic", "SEVERITY_ERROR", "SEVERITY_INFO", "SEVERITY_WARNING",
