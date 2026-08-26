@@ -8,6 +8,9 @@ import { spawnSync } from 'node:child_process';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const version = process.argv[2];
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmArgs = (args) => process.platform === 'win32'
+  ? ['cmd.exe', ['/d', '/s', '/c', `${npmCmd} ${args.join(' ')}`]]
+  : [npmCmd, args];
 const pythonCmd = process.platform === 'win32'
   ? join(root, '.venv', 'Scripts', 'python.exe')
   : join(root, '.venv', 'bin', 'python');
@@ -45,7 +48,7 @@ if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
 for (const [cmd, args] of [
   ['git', ['--version']],
   ['node', ['--version']],
-  [npmCmd, ['--version']],
+  npmArgs(['--version']),
   [pythonCmd, ['--version']],
 ]) {
   try {
@@ -80,7 +83,7 @@ replace('mds - Markdown Schema.md', `**Version:** ${current}`, `**Version:** ${v
 replace('README.md', `Specification (v${current} Beta)`, `Specification (v${version} Beta)`);
 replace('README.md', `Current release: **${current}**`, `Current release: **${version}**`);
 
-run(npmCmd, ['test'], join(root, 'js'));
+run(...npmArgs(['test']), join(root, 'js'));
 run(pythonCmd, ['-m', 'pytest', 'py/tests', '-q'], root);
 run('node', ['tools/package-js.mjs'], root);
 run('node', ['tools/package-py.mjs'], root);
