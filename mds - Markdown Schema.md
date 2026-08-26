@@ -1,6 +1,6 @@
 # MDS — Markdown Document Schema Specification
 
-**Version:** 0.17.5
+**Version:** 0.17.6
 **Status:** Beta
 **Name:** MDS — Markdown Document Schema
 **Schema extension:** `.mds`
