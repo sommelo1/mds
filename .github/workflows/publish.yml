@@ -30,6 +30,9 @@ jobs:
         working-directory: js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify npm release visibility
+        run: |
+          node -e "const {execFileSync}=require('node:child_process'); const fs=require('fs'); const v=JSON.parse(fs.readFileSync('js/package.json','utf8')).version; const out=execFileSync('npm',['view','mds-core','version'],{encoding:'utf8'}).trim(); if (out !== v) { console.error('expected ' + v + ', got ' + out); process.exit(1); }"
 
   pypi:
     name: Publish to PyPI
@@ -55,3 +58,16 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: py/dist
+      - name: Verify PyPI release visibility
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys, time, tomllib, urllib.request
+          target = tomllib.loads((pathlib.Path("py") / "pyproject.toml").read_text())["project"]["version"]
+          url = "https://pypi.org/simple/mds-core/"
+          for _ in range(30):
+              text = urllib.request.urlopen(url, timeout=20).read().decode()
+              if re.search(rf"mds_core-{re.escape(target)}(?:-py3-none-any)?\\.(?:whl|tar\\.gz)", text):
+                  sys.exit(0)
+              time.sleep(10)
+          raise SystemExit("PyPI simple index did not expose mds-core 0.17.2")
+          PY
