@@ -276,9 +276,17 @@ All three entry points return the same three-part result:
 
 | Field | Audience | Content |
 |---|---|---|
-| `exitCode` | machines | `0` valid · `1` invalid · `2` broken contract |
+| `exitCode` | machines | `0`, `1` or `2` — see exit codes below |
 | `diagnostics` | **code** | array of structured findings: `{ code, severity, path, file, line, column, message, contractFile, contractLine, depth }` — identical keys in JS and Python |
 | `stream` | **LLMs & humans** | the rendered Markdown diagnostic lines plus `summary:` — exactly what the CLI prints |
+
+**Exit codes** — stable across the CLI and every library entry point:
+
+| Code | Meaning | What to do |
+|---|---|---|
+| `0` | **valid** — the document satisfies every declaration of the contract | nothing; ship it |
+| `1` | **invalid** — the document violates a valid contract (codes `MDS-C1xx…C6xx`, `MDS-E*`) | inspect `diagnostics`/`stream`, fix the document or relax the contract |
+| `2` | **broken contract** — the `.mds` itself could not be processed (syntax errors `MDS-C0xx`, unresolved references/cycles `MDS-C4xx`) | fix the schema — never paper over it by editing the document |
 
 ```js
 console.log(r.diagnostics[0].code);      // e.g. 'MDS-C101'
