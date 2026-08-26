@@ -116,6 +116,13 @@ Empty values bypass type checks AND constraints. Under `unique`, two empty
 values count as duplicates. `0` is never "no value" — declaring it as one
 (`nullable(0)` on integer) is rejected at contract-parse time.
 
+- Open world by default: a contract binds only what it declares. Declaring
+  a parent section does not constrain its subtree — undeclared child
+  headings and everything inside them are legal. Close selectively with
+  `additionalSections false` / `additionalFields false` (document-wide or
+  per section); then undeclared items fail (MDS-C102 / MDS-C207 / C307).
+  The first level-1 heading stays free while no title is declared.
+
 ## Authoring rules (avoid failures upfront)
 
 - Fields are bullets with `Label: value` inside their section; nested

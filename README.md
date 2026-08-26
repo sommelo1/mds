@@ -99,6 +99,25 @@ there but may be empty. Empty values bypass type checks and constraints;
 under `unique`, two empties count as equal. Full matrix, examples and the
 normative rules live in spec section 23.1.
 
+### Open by default
+
+A contract binds exactly what it declares — nothing else. Undeclared
+sections, fields or columns are legal: declaring a parent heading does not
+constrain its subtree, so an LLM filling a region you left unspecified
+stays free and the document still validates.
+
+```mds
+## Details required       # binds this heading only;
+                          # everything nested below: unconstrained
+```
+
+Strictness is bought explicitly, document-wide or per section:
+
+```mds
+additionalSections false   # undeclared heading -> MDS-C102
+additionalFields false     # undeclared field/column -> MDS-C207/C307
+```
+
 ## CLI reference
 
 Both builds (npm `mds-core` via Node ≥ 18, PyPI `mds-core` via Python ≥ 3.10)

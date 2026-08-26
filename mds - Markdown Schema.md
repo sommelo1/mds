@@ -1359,6 +1359,13 @@ Explicit and schema-supplied values MUST remain distinguishable.
 
 # 31. Unknown Content
 
+A contract binds exactly what it declares — binding is opt-in per declaration. Declaring a parent section does NOT constrain its subtree: child headings that no declaration matches are legal by default, together with any prose, fields, tables, lists or embeds they contain. Nothing binds there, so nothing can fail there; an LLM filling such a region stays free and the document remains valid.
+
+```mds
+## Details required       # only this heading is bound
+                          # everything nested below: unconstrained
+```
+
 Schemas MUST support controlling undeclared structures.
 
 ```mds
@@ -1374,6 +1381,8 @@ additionalFields true
 ```
 
 Defaults: both directives are `true` when not declared. When placed inside a section, a directive applies to that section only; at document level it applies to the whole document.
+
+Under `additionalSections false`, a section heading that no declaration matches fails with `MDS-C102` (unexpected section). Under `additionalFields false`, an undeclared field fails with `MDS-C207` and an undeclared table column with `MDS-C307`. These flags never affect missing-but-declared content, which keeps failing with `MDS-C101`/`MDS-C206`. One exception exists even under a fully closed contract: the first level-1 heading of the document remains free while no title declaration (`# …`) exists, because every Markdown document needs a title.
 
 Rationale: the permissive default fits exploratory authoring and LLM generation; a closed contract (`false`) is a strong guarantee that projects SHOULD activate deliberately for production specifications.
 
