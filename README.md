@@ -433,6 +433,7 @@ publishing:
 ```bash
 node tools/package-py.mjs   # clean build + wheel/sdist content check
 node tools/package-js.mjs   # clean npm pack + tarball content check
+node tools/release.mjs 0.17.2  # bump, test, commit, push, tag
 ```
 
 The Python release gate checks that `mds/__init__.py`, `mds/__main__.py`,
