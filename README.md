@@ -143,21 +143,40 @@ and LLM repair loops.
 
 ```js
 // Node: npm i mds-core
+import { readFileSync } from 'node:fs';
 import { validateDocument } from 'mds-core';
-const { exitCode, stream } = await validateDocument({ docText, schemaText });
+
+const doc = readFileSync('doc.md', 'utf8');      // file -> string
+const schema = readFileSync('doc.mds', 'utf8');
+
+const { exitCode, stream } = await validateDocument({
+  docText: doc,
+  schemaText: schema,
+  docName: 'doc.md',        // label in diagnostics (defaults fine)
+  schemaName: 'doc.mds',
+});
+console.log(exitCode, stream);
 ```
 
 ```python
 # pip install mds-core
 from mds import validate_document
 
+with open("doc.md", encoding="utf-8") as fh:     # file -> string
+    doc = fh.read()
+with open("doc.mds", encoding="utf-8") as fh:
+    schema = fh.read()
+
 r = validate_document(doc_text=doc, schema_text=schema,
-                      doc_name="doc.md", schema_name="doc.mds")
+                      doc_name="doc.md",         # label in diagnostics (default ok)
+                      schema_name="doc.mds")
 print(r["exitCode"], r["stream"])
 ```
 
 Results are plain data; the stream is exactly what the CLI prints, so tests
-can assert against fixture bytes.
+can assert against fixture bytes. The two `*_text` parameters carry the
+content, the two `*_name` parameters only label the diagnostic paths — pass
+real paths for clickable editor/CI output or drop them entirely.
 
 ## Extensions — no core rebuilds
 
