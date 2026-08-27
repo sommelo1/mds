@@ -7,7 +7,7 @@ Instructions for coding agents working in this repository
 
 MDS — Markdown Document Schema. A schema language validating structured Markdown
 (`.md`) against `.mds` contracts, with native semantic expectations (`expect:`).
-Normative specification: `mds - Markdown Schema.md` (v0.13). Reference implementations:
+Normative specification: `SPEC.md`. Reference implementations:
 
 - `js/`  — Node ≥18, zero runtime dependencies, ESM, npm package `mds-core`
 - `py/`  — Python ≥3.10, stdlib-only, package `mds-core`, console script `mds`

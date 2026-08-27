@@ -524,22 +524,26 @@ For modern AI workflows:
 
 MDS combines capabilities that are usually separate.
 
-| Capability                        | Plain Markdown | JSON/YAML schemas | MDS |
-| --------------------------------- | :------------: | :---------------: | :-: |
-| Human-readable prose              |              ✓ |                      limited |   ✓ |
-| Headings / sections               |              ✓ |                    unnatural |   ✓ |
-| Structured fields                 |        limited |                            ✓ |   ✓ |
-| Typed values                      |              ✗ |                            ✓ |   ✓ |
-| Required sections                 |              ✗ |                data-oriented |   ✓ |
-| Section order                     |              ✗ |                      limited |   ✓ |
-| Tables as typed records           |              ✗ |                     indirect |   ✓ |
-| Embedded languages                |              ✓ |              usually strings |   ✓ |
-| External validator delegation     |              ✗ |      limited/domain-specific |   ✓ |
-| Recursive schema validation       |              ✗ | possible but format-specific |   ✓ |
-| LLM generation contract           |       informal |                data-oriented |   ✓ |
-| Deterministic document validation |              ✗ |                    data only |   ✓ |
-| Introspection                     |           weak |                            ✓ |   ✓ |
-| Human-first authoring             |              ✓ |                       weaker |   ✓ |
+| Capability                        | Plain Markdown | YAML front matter | OKF            | JSON/YAML schemas | MDS |
+| --------------------------------- | :------------: | :---------------: | :------------: | :---------------: | :-: |
+| Human-readable prose              |              ✓ |                 ✓ |              ✓ |           limited |   ✓ |
+| Headings / sections               |              ✓ |                 ✓ |              ✓ |        unnatural  |   ✓ |
+| Structured header fields          |        limited |              ✓    | fixed vocabulary |               ✓ |   ✓ |
+| Typed values                      |              ✗ |     parser-implied |             ✗ |               ✓   |   ✓ |
+| Required header entries           |              ✗ |                ✗  |     type only  |               ✓   |   ✓ |
+| Required sections                 |              ✗ |                ✗  |             ✗  |     data-oriented |   ✓ |
+| Section order                     |              ✗ |                ✗  |             ✗  |           limited |   ✓ |
+| Tables as typed records           |              ✗ |                ✗  |             ✗  |          indirect |   ✓ |
+| Embedded languages                |              ✓ |                 ✓ |              ✓ |   usually strings |   ✓ |
+| External validator delegation     |              ✗ |                ✗  |             ✗  | limited/domain-specific | ✓ |
+| Recursive schema validation       |              ✗ |                ✗  |             ✗  | possible but format-specific | ✓ |
+| Interoperable knowledge bundles   |              ✗ |                ✗  |              ✓ |               ✗   | acceptance layer |
+| LLM generation contract           |       informal |           partial |  field vocabulary |    data-oriented |   ✓ |
+| Deterministic document validation |              ✗ |                ✗  |             ✗  |          data only |  ✓ |
+| Introspection                     |           weak |              weak |    conventions |                 ✓ |   ✓ |
+| Human-first authoring             |              ✓ |                 ✓ |              ✓ |            weaker |   ✓ |
+
+Complementary roles follow directly: OKF owns the interoperability surface for knowledge bundles, front matter supplies syntax, data schemas validate detached data — and MDS is the one instrument that makes whole documents, including their front matter, executably testable (see section 15 for how the three families compose).
 
 ---
 
@@ -685,6 +689,84 @@ yes / on        the strings "yes" / "on", never booleans
 ```
 
 Undeclared metadata entries follow the document-level `additionalFields` setting.
+
+### Declaring Typed Metadata Entries
+
+A schema types metadata entries with a column-0 `metadata` statement whose indented list items reuse the full field-declaration grammar — labels are the front-matter keys:
+
+```mds
+metadata
+- id: date required
+- status: enum[draft, reviewed] optional
+```
+
+Each item supports every field capability: scalar and composite types (`date`, `enum[…]`, `union[…]`, …), cardinality, constraints (`minLength=`, `pattern=`, `const=`, `unique`, …) and `nullable[(tokens)]` (section 23.1). A missing `required` entry fails with `MDS-C206`; a present entry failing its type fails with `MDS-C602`; under `additionalFields false` an undeclared key fails with `MDS-C603`; a malformed line (no colon) inside the region always fails with `MDS-C601`. Since the region holds one value per key, composite declarations such as `string[]` or `map[string]` are checked against their element type only. The declaration is document-level; section-local metadata typing is not part of MDS 1.0.
+
+### Front Matter Families: MDS, YAML and OKF
+
+Three header conventions coexist around Markdown documents and answer different questions:
+
+| Family | Parsing cost | Value semantics | What it guarantees |
+|---|---|---|---|
+| YAML front matter (Hugo, Obsidian, …) | full YAML parser | implicit types, nesting, lists | none — purely syntactic |
+| MDS metadata region | built-in flat scanner, zero dependencies | raw strings; typed only when the contract declares it | executable contract: requiredness, types, constraints |
+| OKF conventions | plain front matter plus reserved field names | whatever the producing side wrote | interoperability surface across producers and consumers |
+
+Their roles are complementary rather than competing:
+
+```text
+OKF   WHAT a knowledge note must carry    agreed field vocabulary so bundles interoperate
+YAML  HOW a header may look               expressive syntax: nesting, lists, implicit typing
+MDS   WHETHER a given file conforms       requiredness, types, closed contracts, diagnostics
+```
+
+The Open Knowledge Format (an open specification, v0.1, published by Google Cloud in 2026) represents curated knowledge as a directory of Markdown *concept* files. Each file opens with a YAML front-matter header carrying a small agreed field set — `type` (the only mandatory field), typically `title`, `description`, `resource`, `tags`, `timestamp` — followed by an ordinary Markdown body. Concept files link each other with regular relative links, turning the directory into a navigable graph. OKF thus standardizes the vocabulary that lets any producer's notes feed any consumer's agents; it deliberately states no content model beyond `type:`.
+
+That division of labor composes cleanly with MDS:
+
+- an OKF concept file is exactly the surface MDS models — a `---` header plus structured Markdown body;
+- MDS Core reads the header through its own flat region rules and treats every value as a raw string, so an OKF bundle validates identically on every runtime with no YAML dependency;
+- whatever exceeds the flat subset stays literal text in MDS: `tags: [sales, revenue]` is one string value, `&anchor *alias` are ordinary characters. Policing deeper dialects belongs to a format extension (sections 38–40), never to the deterministic Core verdict — the inverse of YAML tools, where the parser silently coerces;
+
+An MDS contract turns an OKF profile into an acceptance test:
+
+```markdown
+---
+type: BigQuery Table
+title: Orders
+description: One row per completed customer order.
+resource: https://console.example.com/bigquery?p=acme&d=sales&t=orders
+tags: [sales, revenue]
+timestamp: 2026-05-28T14:30:00Z
+---
+
+# Schema
+
+| Column | Type | Description |
+| --- | --- | --- |
+| order_id | STRING | Globally unique order identifier. |
+```
+
+```mds
+document OkfConcept
+
+metadata
+- type: string required minLength=3
+- title: string required maxLength=120
+- description: string optional
+- resource: uri optional
+- timestamp: datetime required
+- tags: string optional
+
+# Schema required
+
+table Columns one-or-more
+- Column: string required
+- Type: string required
+- Description: string required
+```
+
+The contract pins the OKF field set, gives `resource` and `timestamp` real types, and leaves `tags` as a deliberately raw string: whether `[sales, revenue]` counts as a well-formed list is an explicit profile decision (`pattern=`, or a dedicated format extension), never silent parser behavior. Drafting against an existing OKF bundle follows the normal `mds draft` loop.
 
 ---
 
@@ -2438,6 +2520,8 @@ embed <format> [cardinality]
   schema: <path>
   validation: optional | required
 - <Label> [as <identifier>]: <type> [cardinality] [nullable[(tokens)]] [constraints]
+metadata
+- <key>: <type> [cardinality] [nullable[(tokens)]] [constraints]
 additionalSections true | false
 additionalFields true | false
 requires ...

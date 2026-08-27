@@ -79,7 +79,7 @@ for (const file of ['js/package.json', 'py/pyproject.toml', 'py/mds/__init__.py'
 replace('js/package.json', `"version": "${current}"`, `"version": "${version}"`);
 replace('py/pyproject.toml', `version = "${current}"`, `version = "${version}"`);
 replace('py/mds/__init__.py', `__version__ = "${current}"`, `__version__ = "${version}"`);
-replace('mds - Markdown Schema.md', `**Version:** ${current}`, `**Version:** ${version}`);
+replace('SPEC.md', `**Version:** ${current}`, `**Version:** ${version}`);
 replace('README.md', `Specification (v${current} Beta)`, `Specification (v${version} Beta)`);
 replace('README.md', `Current release: **${current}**`, `Current release: **${version}**`);
 
@@ -91,7 +91,7 @@ run('git', ['add',
   '.github/workflows/publish.yml',
   'README.md',
   'js/package.json',
-  'mds - Markdown Schema.md',
+  'SPEC.md',
   'py/mds/__init__.py',
   'py/pyproject.toml',
   'tools/package-js.mjs',

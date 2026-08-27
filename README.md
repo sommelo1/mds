@@ -240,7 +240,7 @@ to `case.md` / `case.mds` unless you pass names yourself.
 # Python - document and contract defined inline, passed as texts
 from mds import validate_document
 
-doc_text = """# Shopping Note
+doc_text = """# Note
 
 ## Body
 
@@ -262,11 +262,7 @@ print(r["exitCode"], r["stream"])
 // JavaScript - same inline pair, texts passed directly
 import { validateDocument } from 'mds-core';
 
-const docText = `# Shopping Note
-
-## Body
-
-Buy oat milk.`;
+const docText = '# Note\n\n## Body\n\nBuy oat milk.';
 
 const schemaText = `document Note
 
@@ -292,7 +288,7 @@ Node/Web streams and sync/async iterables of string or utf8 chunks
 import io
 from mds import validate_streams
 
-doc_text = """# Shopping Note
+doc_text = """# Note
 
 ## Body
 
@@ -316,11 +312,7 @@ print(r["exitCode"], r["stream"])
 import { Readable } from 'node:stream';
 import { validateStreams } from 'mds-core';
 
-const docText = `# Shopping Note
-
-## Body
-
-Buy oat milk.`;
+const docText = '# Note\n\n## Body\n\nBuy oat milk.';
 
 const schemaText = `document Note
 
@@ -387,9 +379,20 @@ Format and semantic-validation extensions drop in with zero configuration:
   scoped `@mds/*` next to your run (JS), entry-point group `mds_ext`
   (Python). Missing-but-required extensions fail loudly with `MDS-E410`.
 
+**Open formats: YAML front matter and OKF.** The metadata region shares its
+shape with the front-matter ecosystem instead of competing with it:
+[OKF](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing)
+standardizes *what* knowledge notes carry (`type`, `title`, `description`,
+`resource`, `tags`, `timestamp`), YAML defines *how* headers may look, and
+MDS proves *whether* a concrete file conforms. A typed `metadata` block plus
+a body contract turns an OKF profile into an executable acceptance test;
+deep YAML dialects (lists, nesting) stay raw strings for Core and become
+format extensions rather than parser behavior. Worked example: spec §15,
+*Front Matter Families*.
+
 ## Documentation
 
-- [Specification (v0.17.6 Beta)](mds%20-%20Markdown%20Schema.md) — normative
+- [Specification (v0.17.6 Beta)](SPEC.md) — normative
 - [Conformance fixtures](conformance/) — 49 cases, source of truth for behavior
 - [Extension examples](examples/) — SVG checker, GFM stub pack, rule-based semantic validator
 - [Agent skills](skills/) — canonical sources of the bundled agent instructions
