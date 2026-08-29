@@ -43,8 +43,9 @@ function resolveExpect() {
 }
 
 function resolveSection(text) {
-  return text.slice(text.indexOf('## Resolve the CLI'),
-    text.indexOf('## Workflow')).trimEnd();
+  const normalized = text.replace(/\r\n/g, '\n');
+  return normalized.slice(normalized.indexOf('## Resolve the CLI'),
+    normalized.indexOf('## Workflow')).trimEnd();
 }
 
 const expectText = resolveExpect();
