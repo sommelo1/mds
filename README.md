@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/mds-core?logo=npm)](https://www.npmjs.com/package/mds-core)
 [![PyPI](https://img.shields.io/pypi/v/mds-core?logo=pypi)](https://pypi.org/project/mds-core/)
+[![CI](https://github.com/sommelo1/mds/actions/workflows/ci.yml/badge.svg)](https://github.com/sommelo1/mds/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Turn Markdown into a contract-driven, testable document format.**
