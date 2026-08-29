@@ -34,7 +34,9 @@ strictEqual(sources.length, 4);
 strictEqual(templates.length, 8);
 
 function resolveExpect() {
-  const t = readFileSync(contractPath, 'utf8');
+  // Git may check Markdown out as CRLF on Windows; the contract grammar and
+  // the canonical skill content are line-ending independent.
+  const t = readFileSync(contractPath, 'utf8').replace(/\r\n/g, '\n');
   const m = /^## "Resolve the CLI"[^\n]*\n\nexpect:\n((?: {2}[^\n]*\n)+)/m.exec(t);
   strictEqual(Boolean(m), true, 'contract lost its Resolve-the-CLI expect block');
   return m[1].replace(/^ {2}/gm, '').trimEnd();
