@@ -41,16 +41,52 @@ MDS Contract
         └── optionally evaluated by extensions
 ```
 
-## Quick start
+## Installation and quick start
+
+Choose **one** CLI variant — Node.js/npm or Python/PyPI. Both implement the
+same `mds` CLI and produce byte-identical results; installing both is
+unnecessary. Choose Node when you already work in an npm/JavaScript project
+or want to run the tool without a persistent installation. Choose Python when
+you prefer a standalone, stdlib-only command-line tool.
+
+### Node.js / npm
+
+Requires Node.js 18 or newer. Install the package as a development dependency
+so its version is recorded with your project, then invoke it with `npx mds`:
 
 ```bash
-# CLI without installing anything (Node >= 18)
-npx --yes --package=mds-core mds validate doc.md doc.mds
+npm install --save-dev mds-core
+npx mds --version
+npx mds validate doc.md doc.mds
+```
 
-# Python side
+For a one-off command without installation:
+
+```bash
+npx --yes --package=mds-core mds validate doc.md doc.mds
+```
+
+### Python / PyPI
+
+Requires Python 3.10 or newer. Use `pipx` for an isolated, standalone CLI,
+then invoke it directly as `mds`:
+
+```bash
 pipx install mds-core
+mds --version
 mds validate doc.md doc.mds
 ```
+
+Alternatively, install it into your project's active virtual environment:
+
+```bash
+python -m pip install mds-core
+mds validate doc.md doc.mds
+```
+
+After the runtime-specific prefix (`npx` for Node, none for Python), all
+domain commands and arguments are identical: `mds validate …`, `mds inspect
+…`, `mds scaffold …`, and so on.
 
 A contract (`doc.mds`):
 
@@ -124,11 +160,10 @@ additionalFields false     # undeclared field/column -> MDS-C207/C307
 
 ## CLI reference
 
-Both builds (npm `mds-core` via Node ≥ 18, PyPI `mds-core` via Python ≥ 3.10)
-expose the same `mds` command with byte-identical behavior. Examples below
-use `mds` — installed via `pipx install mds-core` or `npm i -g mds-core`;
-without installing use `npx --yes --package=mds-core mds …` or
-`python -m mds …` from an active venv.
+Both builds expose the same `mds` command with byte-identical behavior. Use
+the invocation form selected in [Installation and quick start](#installation-and-quick-start):
+`npx mds …` for the npm package, or `mds …` for the PyPI package. The
+following command grammar and all arguments are otherwise identical.
 
 | Command | Purpose |
 |---|---|
@@ -155,8 +190,11 @@ One command makes coding agents MDS-aware in your own project — Claude Code,
 Hermes and Kilo pick the files up automatically:
 
 ```bash
-mds skills install                                # after installing mds-core
-npx --yes --package=mds-core mds skills install   # without installing
+# Node.js/npm (after npm install --save-dev mds-core)
+npx mds skills install
+
+# Python/PyPI (after pipx install mds-core)
+mds skills install
 ```
 
 This writes twelve files — four skills for each supported agent:
